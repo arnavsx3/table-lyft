@@ -70,17 +70,17 @@ export async function resetStats(): Promise<WingmanStats> {
 }
 
 export function onSettingsChanged(callback: (settings: WingmanSettings) => void) {
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes[SETTINGS_KEY]) {
-      callback({ ...DEFAULT_SETTINGS, ...changes[SETTINGS_KEY].newValue });
+  chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+    if (areaName === 'local' && changes[SETTINGS_KEY]?.newValue) {
+      callback({ ...DEFAULT_SETTINGS, ...(changes[SETTINGS_KEY].newValue as Partial<WingmanSettings>) });
     }
   });
 }
 
 export function onStatsChanged(callback: (stats: WingmanStats) => void) {
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes[STATS_KEY]) {
-      callback({ ...DEFAULT_STATS, ...changes[STATS_KEY].newValue });
+  chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+    if (areaName === 'local' && changes[STATS_KEY]?.newValue) {
+      callback({ ...DEFAULT_STATS, ...(changes[STATS_KEY].newValue as Partial<WingmanStats>) });
     }
   });
 }

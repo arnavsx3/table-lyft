@@ -1,19 +1,27 @@
 import { WINGMAN_WS_EVENT_NAME } from '@/modules/ometv/constants';
 
 export default defineContentScript({
-  matches: ['*://*.ome.tv/*', '*://ome.tv/*'],
+  matches: [
+    '*://*.ome.tv/*',
+    '*://ome.tv/*',
+    '*://*.minichat.com/*',
+    '*://minichat.com/*'
+  ],
   world: 'MAIN',
   runAt: 'document_start',
   main() {
-    console.log('[Wingman] Injected main-world WebSocket interceptor initialized.');
+    console.log('[Wingman] Injected main-world WebSocket interceptor active.');
 
     const OriginalWebSocket = window.WebSocket;
-
-    // Track active WebSocket connections
     const activeSockets = new Set<WebSocket>();
 
     function inspectMessage(data: any) {
       if (typeof data !== 'string') return;
+
+      // Debug log incoming message for diagnosis
+      if (data.includes('{') || data.includes('gender') || data.includes('user')) {
+        console.log('[Wingman WS message]:', data.slice(0, 300));
+      }
 
       try {
         // Try parsing JSON payload

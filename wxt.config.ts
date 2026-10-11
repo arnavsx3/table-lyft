@@ -11,7 +11,9 @@ export default defineConfig({
     permissions: ['storage'],
     host_permissions: [
       '*://*.ome.tv/*',
-      '*://ome.tv/*'
+      '*://ome.tv/*',
+      '*://*.minichat.com/*',
+      '*://minichat.com/*'
     ],
     action: {
       default_title: 'Wingman Controller',

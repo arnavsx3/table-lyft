@@ -5,7 +5,12 @@ import { WingmanInPageHud } from '@/modules/ometv/hud';
 import type { PartnerDetectedEvent, WingmanSettings, WingmanStats } from '@/modules/types';
 
 export default defineContentScript({
-  matches: ['*://*.ome.tv/*', '*://ome.tv/*'],
+  matches: [
+    '*://*.ome.tv/*',
+    '*://ome.tv/*',
+    '*://*.minichat.com/*',
+    '*://minichat.com/*'
+  ],
   runAt: 'document_idle',
   async main() {
     console.log('[Wingman] Content script loaded on OmeTV.');
