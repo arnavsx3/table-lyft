@@ -1,86 +1,44 @@
-import type { WingmanSettings, WingmanStats } from './types';
+import { browser } from 'wxt/browser';
+import { normalizeSettings, normalizeStats } from './preferences';
+import { SETTINGS_KEY, STATS_KEY, type Mutation } from './storage-service';
+import type { GenderType, WingmanSettings, WingmanStats } from './types';
 
-export const DEFAULT_SETTINGS: WingmanSettings = {
-  enabled: true,
-  targetGender: 'girls_only',
-  skipDelayMinMs: 300,
-  skipDelayMaxMs: 650,
-  showInPageHud: true,
-  autoReconnectOnDisconnect: true,
-  soundAlertOnMatch: true,
-};
-
-export const DEFAULT_STATS: WingmanStats = {
-  totalSkipped: 0,
-  totalKept: 0,
-  malesSkipped: 0,
-  femalesMatched: 0,
-  sessionStartedAt: Date.now(),
-};
-
-const SETTINGS_KEY = 'wingman_settings';
-const STATS_KEY = 'wingman_stats';
+export { DEFAULT_SETTINGS } from './preferences';
 
 export async function getSettings(): Promise<WingmanSettings> {
-  const result = await chrome.storage.local.get(SETTINGS_KEY);
-  return { ...DEFAULT_SETTINGS, ...(result[SETTINGS_KEY] || {}) };
-}
-
-export async function saveSettings(settings: Partial<WingmanSettings>): Promise<WingmanSettings> {
-  const current = await getSettings();
-  const updated = { ...current, ...settings };
-  await chrome.storage.local.set({ [SETTINGS_KEY]: updated });
-  return updated;
+  const data = await browser.storage.local.get(SETTINGS_KEY);
+  return normalizeSettings(data[SETTINGS_KEY]);
 }
 
 export async function getStats(): Promise<WingmanStats> {
-  const result = await chrome.storage.local.get(STATS_KEY);
-  return { ...DEFAULT_STATS, ...(result[STATS_KEY] || {}) };
+  const data = await browser.storage.local.get(STATS_KEY);
+  return normalizeStats(data[STATS_KEY]);
 }
 
-export async function recordSkip(isMale: boolean): Promise<WingmanStats> {
-  const current = await getStats();
-  const updated: WingmanStats = {
-    ...current,
-    totalSkipped: current.totalSkipped + 1,
-    malesSkipped: isMale ? current.malesSkipped + 1 : current.malesSkipped,
-  };
-  await chrome.storage.local.set({ [STATS_KEY]: updated });
-  return updated;
+async function mutate<T>(mutation: Mutation): Promise<T> {
+  const result = await browser.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation });
+  if (!result?.ok) throw new Error(result?.error || 'Could not save changes. Reload the extension and try again.');
+  return result.value as T;
 }
 
-export async function recordMatch(isFemale: boolean): Promise<WingmanStats> {
-  const current = await getStats();
-  const updated: WingmanStats = {
-    ...current,
-    totalKept: current.totalKept + 1,
-    femalesMatched: isFemale ? current.femalesMatched + 1 : current.femalesMatched,
-  };
-  await chrome.storage.local.set({ [STATS_KEY]: updated });
-  return updated;
-}
-
-export async function resetStats(): Promise<WingmanStats> {
-  const fresh: WingmanStats = {
-    ...DEFAULT_STATS,
-    sessionStartedAt: Date.now(),
-  };
-  await chrome.storage.local.set({ [STATS_KEY]: fresh });
-  return fresh;
-}
+export const saveSettings = (patch: Partial<WingmanSettings>) => mutate<WingmanSettings>({ type: 'settings', patch });
+export const toggleEnabled = () => mutate<WingmanSettings>({ type: 'toggle' });
+export const recordSkip = (gender: GenderType) => mutate<WingmanStats>({ type: 'skip', gender });
+export const recordMatch = (gender: GenderType) => mutate<WingmanStats>({ type: 'keep', gender });
+export const resetStats = () => mutate<WingmanStats>({ type: 'reset' });
 
 export function onSettingsChanged(callback: (settings: WingmanSettings) => void) {
-  chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-    if (areaName === 'local' && changes[SETTINGS_KEY]?.newValue) {
-      callback({ ...DEFAULT_SETTINGS, ...(changes[SETTINGS_KEY].newValue as Partial<WingmanSettings>) });
-    }
-  });
+  const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {
+    if (area === 'local' && SETTINGS_KEY in changes) callback(normalizeSettings(changes[SETTINGS_KEY].newValue));
+  };
+  browser.storage.onChanged.addListener(listener);
+  return () => browser.storage.onChanged.removeListener(listener);
 }
 
 export function onStatsChanged(callback: (stats: WingmanStats) => void) {
-  chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-    if (areaName === 'local' && changes[STATS_KEY]?.newValue) {
-      callback({ ...DEFAULT_STATS, ...(changes[STATS_KEY].newValue as Partial<WingmanStats>) });
-    }
-  });
+  const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {
+    if (area === 'local' && STATS_KEY in changes) callback(normalizeStats(changes[STATS_KEY].newValue));
+  };
+  browser.storage.onChanged.addListener(listener);
+  return () => browser.storage.onChanged.removeListener(listener);
 }
