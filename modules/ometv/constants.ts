@@ -3,6 +3,8 @@ export const WINGMAN_WS_EVENT_NAME = '__WINGMAN_OME_WS_MESSAGE__';
 export const OMETV_SELECTORS = {
   // Common buttons across desktop/mobile web OmeTV layouts
   nextButton: [
+    '.btn.btn-main .btn__bg',
+    '.btn.btn-main',
     '.chat__button_next',
     '.chat__button--next',
     'button.next',

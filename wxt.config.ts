@@ -30,6 +30,12 @@ export default defineConfig({
       '48': 'icon-48.png',
       '128': 'icon-128.png'
     },
+    web_accessible_resources: [
+      {
+        resources: ['models/*'],
+        matches: ['*://*.ome.tv/*', '*://ome.tv/*', '*://*.minichat.com/*', '*://minichat.com/*']
+      }
+    ],
     browser_specific_settings: {
       gecko: {
         id: 'wingman-extension@arnavsx3.github.io',

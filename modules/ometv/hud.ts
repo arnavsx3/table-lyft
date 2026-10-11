@@ -54,6 +54,10 @@ export class WingmanInPageHud {
           <span>Girls: <strong id="wm-matched" style="color: #34d399;">0</strong></span>
         </div>
 
+        <div style="height: 16px; width: 1px; background: rgba(255,255,255,0.15);"></div>
+
+        <span id="wm-live-status" style="font-size: 11px; color: #94a3b8; font-weight: 500;">Ready</span>
+
         <button id="wm-toggle-btn" style="
           background: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(255, 255, 255, 0.15);
@@ -118,6 +122,14 @@ export class WingmanInPageHud {
 
     if (matched) {
       matched.textContent = String(stats.femalesMatched);
+    }
+  }
+
+  public setStatusText(text: string, color = '#94a3b8') {
+    const el = document.getElementById('wm-live-status');
+    if (el) {
+      el.textContent = text;
+      el.style.color = color;
     }
   }
 
