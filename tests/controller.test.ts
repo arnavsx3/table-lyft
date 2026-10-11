@@ -3,6 +3,7 @@ import { WingmanController } from '../modules/ometv/controller';
 import { DEFAULT_SETTINGS } from '../modules/preferences';
 import type { PartnerDetectedEvent, RuntimeStatus, WingmanSettings } from '../modules/types';
 import type { PartnerSession } from '../modules/ometv/session';
+import type { OmeAiVisionDetector } from '../modules/ometv/vision';
 
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
@@ -11,7 +12,7 @@ function setup(settings: WingmanSettings = DEFAULT_SETTINGS) {
   let onPartner: (event: PartnerDetectedEvent) => void = () => {};
   let status: RuntimeStatus | undefined;
   const vision = { load: vi.fn(async () => {}), stop: vi.fn(), destroy: vi.fn(),
-    start: vi.fn((_session, _settings, _valid, callback) => { onPartner = callback; }) };
+    start: vi.fn((...args: Parameters<OmeAiVisionDetector['start']>) => { onPartner = args[3]; }) };
   const skipper = { skipPartner: vi.fn(async () => true), cancel: vi.fn(), destroy: vi.fn(), playMatchSound: vi.fn(async () => {}) };
   const recordSkip = vi.fn(async () => {});
   const recordMatch = vi.fn(async () => {});
@@ -54,7 +55,7 @@ describe('connection controller', () => {
   it('rejects a late prediction from a previous partner', async () => {
     const test = setup();
     test.change(1); await flush();
-    const oldCallback = test.vision.start.mock.calls[0][3];
+    const oldCallback = test.vision.start.mock.calls[0]![3];
     test.change(2); await flush();
     oldCallback({ sessionId: 1, gender: 'male' });
     test.emit('female'); await flush();
@@ -65,7 +66,7 @@ describe('connection controller', () => {
   it('cancels pending work when paused, switched to all, or manually skipped', async () => {
     const test = setup();
     test.change(1); await flush();
-    const stale = test.vision.start.mock.calls[0][3];
+    const stale = test.vision.start.mock.calls[0]![3];
     test.controller.updateSettings({ ...DEFAULT_SETTINGS, enabled: false });
     stale({ sessionId: 1, gender: 'male' }); await flush();
     expect(test.status?.state).toBe('paused');

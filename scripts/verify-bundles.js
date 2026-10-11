@@ -29,6 +29,6 @@ for (const browser of ['chrome', 'firefox']) {
   }
   const scripts = [...manifest.content_scripts.flatMap(script => script.js),
     ...(manifest.background.scripts ?? [manifest.background.service_worker])];
-  for (const file of [...scripts, manifest.action.default_popup]) assert.ok((await stat(path.join(root, file))).size > 0);
+  for (const file of [...scripts, manifest.action.default_popup, 'THIRD_PARTY_NOTICES.txt']) assert.ok((await stat(path.join(root, file))).size > 0);
   console.log(`${browser}: MV3 manifest, permissions, scripts, popup and model weights verified`);
 }

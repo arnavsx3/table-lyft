@@ -46,7 +46,7 @@ describe('vision scheduling', () => {
     resolve([face]);
     await vi.advanceTimersByTimeAsync(1400);
     expect(event).toHaveBeenCalledTimes(1);
-    expect(event.mock.calls[0][0].sessionId).toBe(2);
+    expect(event.mock.calls[0]![0].sessionId).toBe(2);
     vision.destroy();
   });
 

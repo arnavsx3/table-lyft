@@ -2,6 +2,7 @@ import { test as base, chromium, expect, type BrowserContext, type Page, type Wo
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import type { WingmanSettings, WingmanStats } from '../../modules/types';
 
 interface ExtensionFixture { context: BrowserContext; worker: Worker; popup: Page; site: Page; }
 
@@ -35,7 +36,11 @@ const test = base.extend<{ extension: ExtensionFixture }>({
 });
 
 async function getSettings(worker: Worker) {
-  return worker.evaluate(async () => (await chrome.storage.local.get('wingman_settings')).wingman_settings);
+  return worker.evaluate(async () => (await chrome.storage.local.get('wingman_settings')).wingman_settings as WingmanSettings);
+}
+
+async function getStats(worker: Worker) {
+  return worker.evaluate(async () => (await chrome.storage.local.get('wingman_stats')).wingman_stats as WingmanStats);
 }
 
 test('popup preferences persist and sync with isolated in-page controls', async ({ extension: { popup, site, worker } }) => {
@@ -78,14 +83,14 @@ test('shortcut ignores text entry and keeps popup, HUD and badge in sync', async
 test('background serializes cross-context writes and popup reset requires confirmation', async ({ extension: { popup, worker } }) => {
   await popup.evaluate(async () => Promise.all(Array.from({ length: 20 }, () =>
     chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation: { type: 'skip', gender: 'male' } }))));
-  await expect.poll(() => worker.evaluate(async () => (await chrome.storage.local.get('wingman_stats')).wingman_stats.totalSkipped)).toBe(20);
+  await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(20);
   await expect(popup.locator('.stats').getByText('20', { exact: true })).toBeVisible();
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Cancel reset' }).click();
   await expect(popup.locator('.stats').getByText('20', { exact: true })).toBeVisible();
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Reset all' }).click();
-  await expect.poll(() => worker.evaluate(async () => (await chrome.storage.local.get('wingman_stats')).wingman_stats.totalSkipped)).toBe(0);
+  await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(0);
 });
 
 test('real bundled models handle a blank stream as unknown and skip only when enabled', async ({ extension: { site, popup, worker } }) => {
@@ -109,8 +114,8 @@ test('real bundled models handle a blank stream as unknown and skip only when en
     type: 'settings', patch: { skipUnknown: true },
   } }));
   await expect(site.locator('body')).toHaveAttribute('data-clicks', '1');
-  await expect.poll(() => worker.evaluate(async () => (await chrome.storage.local.get('wingman_stats')).wingman_stats.unknownSkipped)).toBe(1);
-  expect(await worker.evaluate(async () => (await chrome.storage.local.get('wingman_stats')).wingman_stats.malesSkipped)).toBe(0);
+  await expect.poll(async () => (await getStats(worker)).unknownSkipped).toBe(1);
+  expect((await getStats(worker)).malesSkipped).toBe(0);
   await expect(popup.locator('.stats .rose')).toHaveText('1');
 });
 

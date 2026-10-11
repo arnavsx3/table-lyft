@@ -15,7 +15,8 @@
   "include": [
     "entrypoints/**/*",
     "modules/**/*",
-    "utils/**/*",
+    "tests/**/*",
+    "*.config.ts",
     ".wxt/wxt.d.ts"
   ]
 }

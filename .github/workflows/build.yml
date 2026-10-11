@@ -1,10 +1,18 @@
 name: CI Build & Verify
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -24,14 +32,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run compile
+      - name: Type check and regression tests
+        run: npm run check
 
       - name: Build Chrome (Manifest V3)
         run: npm run build
 
       - name: Build Firefox
         run: npm run build:firefox
+
+      - name: Verify manifests and bundled models
+        run: npm run verify:bundles
+
+      - name: Install browser for integration tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Test the installed Chrome extension
+        run: npm run test:e2e
+
+      - name: Upload browser test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wingman-browser-tests
+          path: test-results/
+          retention-days: 7
 
       - name: Package extension zips
         run: |
@@ -43,9 +68,11 @@ jobs:
         with:
           name: wingman-chrome-mv3
           path: dist/*-chrome.zip
+          if-no-files-found: error
 
       - name: Upload Firefox Extension Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wingman-firefox
           path: dist/*-firefox.zip
+          if-no-files-found: error
