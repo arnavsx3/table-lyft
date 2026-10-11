@@ -26,6 +26,8 @@ export const toggleEnabled = () => mutate<WingmanSettings>({ type: 'toggle' });
 export const recordSkip = (gender: GenderType) => mutate<WingmanStats>({ type: 'skip', gender });
 export const recordMatch = (gender: GenderType) => mutate<WingmanStats>({ type: 'keep', gender });
 export const resetStats = () => mutate<WingmanStats>({ type: 'reset' });
+export const recordSession = () => mutate<WingmanStats>({ type: 'session' });
+export const recordManualSkip = () => mutate<WingmanStats>({ type: 'manualSkip' });
 
 export function onSettingsChanged(callback: (settings: WingmanSettings) => void) {
   const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {

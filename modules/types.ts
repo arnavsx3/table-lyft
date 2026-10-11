@@ -14,6 +14,7 @@ export interface WingmanSettings {
 }
 
 export interface WingmanStats {
+  totalSessions: number;
   totalSkipped: number;
   totalKept: number;
   malesSkipped: number;
@@ -29,10 +30,12 @@ export interface PartnerDetectedEvent {
   reason?: 'timeout';
 }
 
-export type RuntimeState = 'paused' | 'waiting' | 'loading' | 'analyzing' | 'keeping'
+export type RuntimeState = 'connected' | 'skip_pending' | 'paused' | 'waiting' | 'loading' | 'analyzing' | 'keeping'
   | 'skipping' | 'uncertain' | 'skip_unavailable' | 'model_error' | 'error';
 
 export interface RuntimeStatus {
   state: RuntimeState;
   message: string;
+  connectedAt?: number;
+  canSkip?: boolean;
 }

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { Activity, ArrowUpRight, Check, CircleAlert, Eye, Heart, LoaderCircle, RotateCcw, ShieldCheck, SlidersHorizontal, Users, Volume2, X } from 'lucide-react';
+import { Activity, ArrowUpRight, Check, CircleAlert, Eye, LoaderCircle, RotateCcw, SkipForward, Volume2, X } from 'lucide-react';
 import { getSettings, saveSettings, toggleEnabled, getStats, resetStats, onSettingsChanged, onStatsChanged } from '@/modules/storage';
-import type { RuntimeStatus, TargetGender, WingmanSettings, WingmanStats } from '@/modules/types';
+import type { RuntimeStatus, WingmanSettings, WingmanStats } from '@/modules/types';
 
 function Toggle({ label, checked, disabled, onChange }: {
   label: string; checked: boolean; disabled?: boolean; onChange: () => void;
@@ -11,29 +11,7 @@ function Toggle({ label, checked, disabled, onChange }: {
     checked={checked} disabled={disabled} onChange={onChange} /><span /></label>;
 }
 
-function Range({ label, value, min, max, step, format, disabled, onSave }: {
-  label: string; value: number; min: number; max: number; step: number; format: (value: number) => string;
-  disabled?: boolean; onSave: (value: number) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  const submitted = useRef(value);
-  useEffect(() => { setDraft(value); submitted.current = value; }, [value]);
-  const commit = (next: number) => {
-    if (submitted.current === next) return;
-    submitted.current = next;
-    onSave(next);
-  };
-  return <label className="range-setting"><span className="range-heading"><span>{label}</span><output>{format(draft)}</output></span>
-    <input type="range" min={min} max={max} step={step} value={draft} disabled={disabled} aria-label={label}
-      aria-valuetext={format(draft)} onChange={event => setDraft(Number(event.target.value))}
-      onPointerUp={event => commit(Number(event.currentTarget.value))}
-      onKeyUp={event => commit(Number(event.currentTarget.value))}
-      onBlur={event => commit(Number(event.currentTarget.value))} />
-  </label>;
-}
-
 const unsupported: RuntimeStatus = { state: 'waiting', message: 'Open OmeTV to connect' };
-const retryStates = ['model_error', 'skip_unavailable', 'error', 'uncertain'];
 
 export default function App() {
   const [settings, setSettings] = useState<WingmanSettings | null>(null);
@@ -46,10 +24,14 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    const unwatchSettings = onSettingsChanged(next => { if (active) setSettings(next); });
-    const unwatchStats = onStatsChanged(next => { if (active) setStats(next); });
+    let settingsRevision = 0;
+    let statsRevision = 0;
+    const unwatchSettings = onSettingsChanged(next => { settingsRevision++; if (active) setSettings(next); });
+    const unwatchStats = onStatsChanged(next => { statsRevision++; if (active) setStats(next); });
     Promise.all([getSettings(), getStats()]).then(([nextSettings, nextStats]) => {
-      if (active) { setSettings(nextSettings); setStats(nextStats); }
+      if (!active) return;
+      if (settingsRevision === 0) setSettings(nextSettings);
+      if (statsRevision === 0) setStats(nextStats);
     }).catch(() => { if (active) setError('Could not load saved settings. Reopen Wingman to try again.'); });
     const refresh = async () => {
       try {
@@ -64,7 +46,7 @@ export default function App() {
       } catch { if (active) setStatus({ state: 'error', message: 'Refresh this page to connect Wingman' }); }
     };
     void refresh();
-    const timer = setInterval(() => { void refresh(); }, 1500);
+    const timer = setInterval(() => { void refresh(); }, 1000);
     return () => { active = false; clearInterval(timer); unwatchSettings(); unwatchStats(); };
   }, []);
 
@@ -81,69 +63,43 @@ export default function App() {
     setSettings(current => current ? { ...current, ...patch } : current);
     void run(async () => { setSettings(await saveSettings(patch)); });
   };
-  const retry = () => { if (tabId !== null) void run(() => browser.tabs.sendMessage(tabId, { type: 'WINGMAN_RETRY' })); };
+  const send = (type: 'WINGMAN_RETRY' | 'WINGMAN_NEXT') => {
+    if (tabId !== null) void run(() => browser.tabs.sendMessage(tabId, { type }));
+  };
 
   if (!settings || !stats) return <main className="loading" aria-live="polite"><img src="/icon-48.png" width="40" height="40" alt="" />
     <h1>Wingman</h1>{error ? <p role="alert">{error}</p> : <LoaderCircle className="spin" size={20} aria-label="Loading" />}</main>;
 
-  const active = settings.enabled && settings.targetGender !== 'all';
-  const delay = Math.round((settings.skipDelayMinMs + settings.skipDelayMaxMs) / 2);
   return <main className="app">
     <header className="header"><div className="brand"><img src="/icon-48.png" width="32" height="32" alt="" /><h1>Wingman</h1>
       <span className="version">{browser.runtime.getManifest().version}</span></div>
-      <span className={`activity ${active ? 'on' : ''}`}><span />{active ? 'On' : 'Paused'}</span></header>
-
-    <section className="master"><div><h2>Auto-skip</h2><span className="muted">OmeTV / MiniChat</span></div>
-      <Toggle label="Auto-skip" checked={settings.enabled} disabled={busy}
+      <span className={`activity ${settings.enabled ? 'on' : ''}`}><span />{settings.enabled ? 'On' : 'Paused'}</span></header>
+    <section className="master"><div><h2>Session tracking</h2><span className="muted">OmeTV / MiniChat</span></div>
+      <Toggle label="Session tracking" checked={settings.enabled} disabled={busy}
         onChange={() => {
           setSettings({ ...settings, enabled: !settings.enabled });
           void run(async () => setSettings(await toggleEnabled()));
         }} /></section>
-
-    <div className={`live-status ${retryStates.includes(status.state) ? 'warning' : ''}`} role="status">
-      {retryStates.includes(status.state) ? <CircleAlert size={15} /> : <Activity size={15} />}
-      <span>{status.message}</span>{tabId !== null && retryStates.includes(status.state) &&
-        <button className="icon-button" title="Retry detection" aria-label="Retry detection" disabled={busy} onClick={retry}><RotateCcw size={15} /></button>}
+    <div className={`live-status ${status.state === 'error' ? 'warning' : ''}`} role="status">
+      {status.state === 'error' ? <CircleAlert size={15} /> : <Activity size={15} />}
+      <span>{status.message}</span>{tabId !== null && status.state === 'error' &&
+        <button className="icon-button" title="Refresh status" aria-label="Refresh status" disabled={busy} onClick={() => send('WINGMAN_RETRY')}><RotateCcw size={15} /></button>}
     </div>
     {error && <div className="error" role="alert"><span>{error}</span><button className="icon-button" title="Dismiss error" aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div>}
-
-    <section><h2 className="section-title"><Users size={14} />Match preference</h2>
-      <div className="segmented" role="group" aria-label="Match preference">{([
-        ['girls_only', 'Women', Heart], ['boys_only', 'Men', Users], ['all', 'Everyone', ShieldCheck],
-      ] as const).map(([value, label, Icon]) => <button key={value} aria-pressed={settings.targetGender === value}
-        disabled={busy} onClick={() => save({ targetGender: value as TargetGender })}><Icon size={15} />{label}</button>)}</div>
-    </section>
-
-    <section className="tuning"><h2 className="section-title"><SlidersHorizontal size={14} />Detection</h2>
-      <Range label="Skip delay" value={delay} min={300} max={2000} step={50} format={value => `${value} ms`} disabled={busy}
-        onSave={value => save({ skipDelayMinMs: value - 150, skipDelayMaxMs: value + 150 })} />
-      <Range label="Confidence threshold" value={Math.round(settings.minimumConfidence * 100)} min={70} max={99} step={1}
-        format={value => `${value}%`} disabled={busy} onSave={value => save({ minimumConfidence: value / 100 })} />
-      <div className="option"><label htmlFor="uncertain"><span>Skip uncertain matches</span></label>
-        <input id="uncertain" className="checkbox" type="checkbox" checked={settings.skipUnknown} disabled={busy}
-          onChange={event => save({ skipUnknown: event.target.checked })} /></div>
-      {settings.skipUnknown && <label className="option" htmlFor="timeout"><span>Wait before skipping</span><select id="timeout"
-        value={settings.unknownTimeoutMs} disabled={busy} onChange={event => save({ unknownTimeoutMs: Number(event.target.value) })}>
-        {Array.from(new Set([3000, 5000, 8000, 12000, 20000, 30000, settings.unknownTimeoutMs])).sort((a, b) => a - b)
-          .map(value => <option key={value} value={value}>{value / 1000} seconds</option>)}</select></label>}
-    </section>
-
     <section><div className="section-heading"><h2 className="section-title"><Activity size={14} />Activity</h2>
       <div className="reset">{confirmReset ? <><button className="text-button danger" disabled={busy} onClick={() => {
         void run(async () => { setStats(await resetStats()); setConfirmReset(false); });
       }}>Reset all</button><button className="icon-button" aria-label="Cancel reset" title="Cancel reset" onClick={() => setConfirmReset(false)}><X size={14} /></button></> :
         <button className="icon-button" aria-label="Reset statistics" title="Reset statistics" onClick={() => setConfirmReset(true)}><RotateCcw size={14} /></button>}</div>
-      </div><div className="stats"><div><strong className="rose">{stats.totalSkipped.toLocaleString()}</strong><span>Skipped</span></div>
-        <div><strong className="green">{stats.totalKept.toLocaleString()}</strong><span>Kept</span></div>
-        <div><strong>{stats.unknownSkipped.toLocaleString()}</strong><span>Uncertain skips</span></div></div>
+      </div><div className="stats"><div><strong className="green" aria-label="Sessions">{stats.totalSessions.toLocaleString()}</strong><span>Sessions</span></div>
+        <div><strong className="rose" aria-label="Skipped">{stats.totalSkipped.toLocaleString()}</strong><span>Skipped</span></div></div>
     </section>
-
     <section className="preferences"><div className="option"><span><Eye size={15} />In-page controls</span>
       <Toggle label="In-page controls" checked={settings.showInPageHud} disabled={busy} onChange={() => save({ showInPageHud: !settings.showInPageHud })} /></div>
-      <div className="option"><span><Volume2 size={15} />Match sound</span><Toggle label="Match sound" checked={settings.soundAlertOnMatch}
+      <div className="option"><span><Volume2 size={15} />Connection sound</span><Toggle label="Connection sound" checked={settings.soundAlertOnMatch}
         disabled={busy} onChange={() => save({ soundAlertOnMatch: !settings.soundAlertOnMatch })} /></div></section>
-
-    <footer><span><Check size={13} />On-device only</span><a href="https://github.com/arnavsx3/wingman" target="_blank" rel="noreferrer" title="Wingman on GitHub">GitHub<ArrowUpRight size={13} /></a></footer>
-    <p className="estimate-note">Appearance estimates can be wrong. Uncertain matches {settings.skipUnknown ? 'are skipped after the wait' : 'stay connected'}.</p>
+    <button className="next-button" aria-label="Next connection" disabled={busy || !settings.enabled || !status.canSkip || tabId === null}
+      onClick={() => send('WINGMAN_NEXT')}><SkipForward size={17} />Next</button>
+    <footer><span><Check size={13} />Manual controls</span><a href="https://github.com/arnavsx3/wingman" target="_blank" rel="noreferrer" title="Wingman on GitHub">GitHub<ArrowUpRight size={13} /></a></footer>
   </main>;
 }

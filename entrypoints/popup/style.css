@@ -73,13 +73,15 @@ select { background: #24252b; color: #f3f3f5; border: 1px solid var(--line); bor
 .reset { gap: 5px; }
 .text-button { border: 0; background: transparent; font-size: 11px; padding: 3px; }
 .danger { color: var(--rose); }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .stats div { display: flex; flex-direction: column; min-width: 0; }
 .stats strong { font-size: 24px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .stats span { color: var(--muted); font-size: 10px; margin-top: 4px; }
 .rose { color: var(--rose); }
 .green { color: var(--green); }
 .preferences { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.next-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 40px; margin-top: 14px; border: 0; border-radius: 4px; background: #168769; color: #fff; font-weight: 600; }
+.next-button:hover:not(:disabled) { background: #1a9b79; }
 footer { margin-top: 12px; font-size: 10px; color: var(--muted); }
 footer a, footer span { gap: 4px; }
 footer a { color: var(--muted); text-decoration: none; }

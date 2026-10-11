@@ -2,23 +2,25 @@
 
 [![Build and tests](https://github.com/arnavsx3/wingman/actions/workflows/build.yml/badge.svg)](https://github.com/arnavsx3/wingman/actions/workflows/build.yml)
 
-An on-device browser extension for OmeTV and MiniChat. Choose Women, Men, or Everyone; Wingman can request the next connection when a visual estimate consistently disagrees with your preference.
+Manual session controls for OmeTV and MiniChat, with persistent connection/skip counters and an isolated in-page HUD.
 
-## What's New in 1.1
+## Version 1.2
 
-- Connection-aware cancellation prevents a delayed skip from carrying over to another partner.
-- Three consecutive predictions above a configurable confidence threshold are required before acting.
-- Blank video, no face, multiple faces, and inconsistent estimates stay **uncertain**. Keep them connected by default, or explicitly enable a timed skip.
-- Both Women and Men preferences work; Everyone stops analysis and automatic skipping.
-- Popup and isolated in-page controls show real status, errors, and retry actions.
-- Settings and persistent statistics synchronize across tabs without conflicting writes.
-- No traffic interception, message logging, analytics, or remote model downloads.
+The active runtime now uses manual controls. It does not inspect video pixels, infer gender, or automatically filter people. Filtering on explicit self-reported partner information is not implemented; no suitable field is currently integrated.
 
-Visual estimates are fallible and cannot establish someone's gender identity. Model confidence is a score, not a measured accuracy guarantee. Lighting, occlusion, camera quality, and demographic bias can affect predictions. There is no guarantee of exclusively matching women or of avoiding platform restrictions.
+- Sessions counts observed remote connections once while tracking is enabled.
+- Skipped counts a manual Next intent followed by an observable disconnect or stream replacement within three seconds.
+- HUD Next, site Next, and the site's ArrowRight shortcut are tracked. Failed clicks, Stop, and unsolicited disconnects do not count.
+- Live remote playback is recognized without the expected playback CSS class. Searching/stopped states and missing or ended media are excluded.
+- The larger 420-pixel HUD has Sessions, Skipped, chat time, tracking controls, and Next. It fits smaller screens.
+- Counters synchronize across tabs, persist through reloads, and reset only after confirmation.
+- Browser bundles contain no video models or classification code.
+
+Existing aggregate counters are preserved, including historical fields no longer displayed. New Sessions starts at zero because previous releases did not track connections. Legacy filtering modules and assets remain in source for reference but are not loaded or shipped in the browser runtime.
 
 ## Install
 
-Use Node.js **22 or newer** and npm:
+Use Node.js 22 or newer and npm:
 
 ```sh
 git clone https://github.com/arnavsx3/wingman.git
@@ -27,87 +29,68 @@ npm ci
 npm run build
 ```
 
-For Chrome, Brave, Edge, or other compatible Chromium browsers:
+For Brave, Chrome, Edge, or compatible Chromium browsers:
 
-1. Open the browser's extensions page, such as `chrome://extensions`.
+1. Open the extensions page, such as `brave://extensions`.
 2. Enable Developer mode and choose **Load unpacked**.
 3. Select `dist/chrome-mv3`.
-4. Refresh any already-open OmeTV or MiniChat tab.
+4. Refresh OmeTV or MiniChat.
 
-For Firefox 109 or newer:
+After an update, reload Wingman's extension card and refresh the site. Check that the settings panel shows version 1.2.0.
 
-```sh
-npm run build:firefox
-```
+For Firefox, run `npm run build:firefox`. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `dist/firefox-mv3/manifest.json`. Allow access to supported sites when asked. Temporary installs end when Firefox restarts; regular distribution requires Mozilla signing. Both targets use Manifest V3.
 
-Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `dist/firefox-mv3/manifest.json`. Allow access to the supported sites when Firefox asks. Temporary installs end when Firefox restarts; regular distribution requires Mozilla signing. Both browser targets use Manifest V3.
+[GitHub Actions](https://github.com/arnavsx3/wingman/actions/workflows/build.yml) provides development ZIPs. Extract the Chrome ZIP before loading its folder unpacked.
 
-Successful [GitHub Actions runs](https://github.com/arnavsx3/wingman/actions/workflows/build.yml) also provide downloadable Chrome and Firefox ZIP artifacts. Extract the Chrome ZIP before loading it unpacked. These are development builds, not signed store releases.
+## Controls and Counters
 
-## Controls
+Use the HUD or settings panel's **Next** for a manual skip. It is disabled without an active tracked connection. Pause tracking in either panel or using **Alt+W** outside chat fields. Wingman does not start chats or reconnect after Stop.
 
-Open the extension popup to change the preference, skip delay, confidence threshold, uncertainty timeout, in-page controls, or match sound. Changes apply to open supported tabs. In-page pause/resume and **Alt+W** toggle filtering; the shortcut is ignored while entering chat text.
+Counters represent observable page activity, not guaranteed server acknowledgment. Ignored Next clicks time out without adding a skip. A partner leaving at the same moment as a Next request cannot be distinguished from a successful skip. Unavailable controls produce an error rather than clicking arbitrary buttons.
 
-Default behavior:
+Pause prevents new counts. Resuming an already-counted connection does not count it again; resuming one first seen while paused counts it once. Reset clears aggregate totals, not the active connection's clock or identity. The active connection is not immediately recounted after reset.
 
-| Setting | Default |
-| --- | --- |
-| Preference | Women |
-| Skip delay | 300-650 ms |
-| Prediction threshold | 85%, across three consistent frames |
-| Uncertain matches | Keep connected |
-| Uncertainty wait | 8 seconds when timed skipping is enabled |
-| In-page controls / match sound | Enabled |
+Connection sound depends on browser audio policy. Hiding the HUD does not stop tracking; re-enable it in the settings panel.
 
-The delay starts after detection. A one-second minimum separates automatic Next requests. Wingman never automatically starts a chat, reconnects after Stop, or retries a click against a later partner. If Next is unavailable, use the retry control or skip manually. Sound depends on the browser allowing audio playback.
-
-Statistics persist until **Reset all** or extension removal. Skipped counts automatic Next requests successfully dispatched to an available control; it does not certify a server-confirmed transition. Kept counts a confident preferred match once per detected connection. Uncertain keeps and manual actions do not inflate these counters. Uncertain skips have their own counter and never count as male skips. Existing 1.0 settings and statistics are migrated on read.
-
-## Development and Checks
+## Development
 
 ```sh
-npm run dev             # Chromium development browser
-npm run dev:firefox     # Firefox MV3 development browser
-npm run check           # Type-check application, config, and tests; run regression suite
+npm run dev
+npm run dev:firefox
+npm run check
 npm run build
 npm run build:firefox
-npm run verify:bundles  # Verify permissions, scripts, versions, and model shard sizes
+npm run verify:bundles
 npx playwright install chromium
-npm run test:e2e        # Load the actual Chrome extension against a local OmeTV fixture
+npm run test:e2e
 npm run zip
 npm run zip:firefox
 ```
 
-Production builds are in `dist/`, not `.output/`. ZIP names include the version and target browser. Browser tests use an isolated temporary profile, a synthetic video stream, and intercepted fixture pages; they do not access a camera or connect to strangers. Screenshots and failure traces are saved in `test-results/` and uploaded by CI.
+Builds are in `dist/`. Installed-extension tests use intercepted fixture pages and synthetic streams, not cameras or strangers. They cover connection counts, manual Next paths, failure, Stop, pause, persistence, cross-context storage, resets, native settings-window dimensions, and responsive HUD screenshots. Diagnostics are in `test-results/`.
 
 ## Architecture
 
 | Module | Responsibility |
 | --- | --- |
-| `entrypoints/background.ts` | Serialized settings/statistics mutations and badge updates |
-| `entrypoints/content.ts` | Page lifecycle, subscriptions, shortcuts, and controls |
-| `modules/ometv/session.ts` | Connection identity from remote video, stream, tracks, and playback state |
-| `modules/ometv/vision.ts` | Bundled model loading and sequential inference |
-| `modules/ometv/decision.ts` | Filter policy and prediction consensus |
-| `modules/ometv/controller.ts` | Cancellable per-connection decisions and statistics |
-| `modules/ometv/skipper.ts` | Validated Next controls, cooldown, and match audio |
-| `modules/preferences.ts` | Defaults, validation, and migration |
-| `modules/ometv/hud.tsx` | Responsive controls isolated in a shadow root |
+| `entrypoints/background.ts` | Serialized storage mutations and tracking badge |
+| `entrypoints/content.ts` | Lifecycle, subscriptions, manual controls, and shortcuts |
+| `modules/ometv/session.ts` | Remote stream/track and playback identity |
+| `modules/ometv/assistant.ts` | Session counts and confirmed manual-skip accounting |
+| `modules/ometv/skipper.ts` | Validated site controls and optional audio |
+| `modules/ometv/hud.tsx` | Shadow-root controls and chat timer |
+| `modules/preferences.ts` | Validation and migration |
 
-The existing [FaceAPI](https://github.com/vladmandic/face-api) inference stack is retained with bundled Tiny Face Detector and Age/Gender weights. Its upstream repository is archived; future model replacement should be evaluated with representative, consented test data rather than assuming higher confidence means higher accuracy. Only the gender estimate is used; age output is neither logged nor stored.
+## Limits
 
-## Troubleshooting and Limits
-
-- **Refresh this page to connect Wingman:** reload the supported tab after installing or updating the extension; check site access in extension settings.
-- **Models unavailable / video analysis failed:** use Retry detection. Filtering does not claim to be ready after a model failure.
-- **Uncertain match kept:** no stable single-face prediction reached the threshold in time. Lowering confidence increases the chance of a wrong decision.
-- **Next control unavailable:** the control is hidden, disabled, or the site layout changed. No keyboard fallback or arbitrary last-button click is attempted.
-- Background tabs suspend new inference. Returning to the tab gives detection a fresh uncertainty window.
-- OmeTV's current remote-video layout is inspected, but actual matchmaking and Firefox runtime behavior still require manual smoke testing. MiniChat must expose the same remote-video IDs and playback state; a different layout is currently left idle.
-- Sites can change layouts or reuse connections in ways that provide no observable stream, track, or playback transition. Such transitions cannot be reliably distinguished by a DOM-only extension.
+- Reload the site after installing or updating the extension.
+- Waiting while connected means the expected remote element/stream is not observable. A different layout or a transition with no stream, track, or playback change may be indistinguishable.
+- Next unavailable means the control is hidden, disabled, or changed. Wingman does not click Start as Next.
+- Background pages may receive delayed browser events. Counters use observable transitions, not network interception.
+- Real matchmaking, MiniChat layout compatibility, and Firefox runtime behavior still require manual verification.
 
 ## Privacy and License
 
-Frames are processed transiently in your browser. Wingman stores preferences and aggregate counters locally. See [PRIVACY.md](PRIVACY.md) for details. The Firefox manifest declares no transmitted data using [Mozilla's built-in data consent format](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
+Preferences and aggregate counters stay in extension-local storage. Wingman does not save media, keep per-person history, or send telemetry. See [PRIVACY.md](PRIVACY.md).
 
-[MIT](LICENSE). Third-party notices are included in production bundles. Wingman is not affiliated with OmeTV or MiniChat; use is subject to the platform's rules.
+[MIT](LICENSE). Bundled notices cover third-party dependencies. Wingman is not affiliated with OmeTV or MiniChat; site rules still apply.

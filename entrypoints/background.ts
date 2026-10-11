@@ -18,7 +18,7 @@ export default defineBackground(() => {
   });
 
   const updateBadge = async (settings: Awaited<ReturnType<typeof getSettings>>) => {
-    const active = settings.enabled && settings.targetGender !== 'all';
+    const active = settings.enabled;
     await browser.action.setBadgeText({ text: active ? 'ON' : 'OFF' });
     await browser.action.setBadgeBackgroundColor({ color: active ? '#13866b' : '#6b7280' });
   };

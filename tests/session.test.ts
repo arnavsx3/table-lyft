@@ -27,6 +27,7 @@ describe('partner session tracking', () => {
 
   it('detects rapid class transitions even with a reused stream', async () => {
     document.body.innerHTML = '<div id="remote-video-wrapper" class="s-play"><video id="remote-video"></video></div>';
+    document.querySelector('video')!.srcObject = { id: 'same', active: true, getVideoTracks: () => [{ id: 'track', readyState: 'live' }] } as unknown as MediaStream;
     const tracker = new PartnerSessionTracker(vi.fn());
     tracker.start();
     const first = tracker.current!.id;
@@ -39,6 +40,28 @@ describe('partner session tracking', () => {
     wrapper.className = 's-play extra';
     await Promise.resolve();
     expect(tracker.current!.id).toBe(second);
+    tracker.destroy();
+  });
+
+  it('recognizes live remote playback without depending on the s-play class', () => {
+    document.body.innerHTML = '<div id="remote-video-wrapper" class="video-container"><video id="remote-video"></video></div>';
+    const video = document.querySelector('video')!;
+    video.srcObject = { id: 'remote', active: true, getVideoTracks: () => [{ id: 'track', readyState: 'live' }] } as unknown as MediaStream;
+    Object.defineProperties(video, { paused: { value: false }, readyState: { value: 4 }, videoWidth: { value: 640 }, videoHeight: { value: 480 } });
+    const tracker = new PartnerSessionTracker(vi.fn());
+    tracker.check();
+    expect(tracker.current).not.toBeNull();
+    document.querySelector('#remote-video-wrapper')!.className = 's-search';
+    tracker.check();
+    expect(tracker.current).toBeNull();
+    tracker.destroy();
+  });
+
+  it('does not count a playback class with no remote media', () => {
+    document.body.innerHTML = '<div id="remote-video-wrapper" class="s-play"><video id="remote-video"></video></div>';
+    const tracker = new PartnerSessionTracker(vi.fn());
+    tracker.check();
+    expect(tracker.current).toBeNull();
     tracker.destroy();
   });
 

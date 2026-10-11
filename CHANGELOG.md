@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 - 2026-10-12
+
+### Changed
+
+- Switch the active runtime to manual session controls; video classification and automatic filtering are no longer invoked or shipped in browser bundles.
+- Count connections independently of filtering, with migration that preserves existing aggregate counters.
+- Count HUD Next, site Next, and native keyboard requests only after an observable connection transition; ignore failed clicks, Stop, and unsolicited disconnects.
+- Recognize live remote streams even when the site's playback CSS class differs, while rejecting searching/stopped states and missing media.
+- Enlarge the responsive HUD to 420 pixels, with larger controls, session/skip counters, a live chat timer, and a full-width Next button.
+- Synchronize initial statistics without overwriting newer storage events, and update both popup and HUD across tabs and resets.
+
 ## 1.1.1 - 2026-10-12
 
 ### Fixed

@@ -41,7 +41,7 @@ export function normalizeSettings(value: unknown): WingmanSettings {
 }
 
 export function freshStats(now = Date.now()): WingmanStats {
-  return { totalSkipped: 0, totalKept: 0, malesSkipped: 0, femalesMatched: 0, unknownSkipped: 0, sessionStartedAt: now };
+  return { totalSessions: 0, totalSkipped: 0, totalKept: 0, malesSkipped: 0, femalesMatched: 0, unknownSkipped: 0, sessionStartedAt: now };
 }
 
 export function normalizeStats(value: unknown): WingmanStats {

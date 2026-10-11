@@ -1,7 +1,7 @@
 {
   "name": "wingman",
-  "version": "1.1.1",
-  "description": "Smart cross-browser extension for OmeTV partner filtering and auto-skipping",
+  "version": "1.2.0",
+  "description": "Cross-browser manual session controls and persistent counters for OmeTV",
   "private": true,
   "type": "module",
   "scripts": {

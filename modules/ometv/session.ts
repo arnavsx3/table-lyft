@@ -16,11 +16,14 @@ export class PartnerSessionTracker {
   private snapshot() {
     const wrapper = document.querySelector('#remote-video-wrapper');
     const video = document.querySelector<HTMLVideoElement>('#remote-video');
-    if (!wrapper?.classList.contains('s-play') || !video) return null;
+    if (!wrapper || !video || wrapper.matches('.s-stop, .s-search')) return null;
     const stream = video.srcObject;
     const media = stream && 'getVideoTracks' in stream ? stream as MediaStream : null;
     const tracks = media?.getVideoTracks() ?? [];
     if (media && (!media.active || tracks.length === 0 || tracks.every(track => track.readyState === 'ended'))) return null;
+    const playing = !video.paused && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+    if (!wrapper.classList.contains('s-play') && !(media && playing)) return null;
+    if (!media && !(playing && (video.currentSrc || video.src))) return null;
     return { video, fingerprint: media ? `${media.id}:${tracks.map(track => track.id).join(',')}` : video.currentSrc || video.src };
   }
 
@@ -28,7 +31,7 @@ export class PartnerSessionTracker {
     this.observer = new MutationObserver(records => {
       // A complete disconnect/reconnect can happen between two polling ticks.
       const transitions = records.filter(record => record.target === this.wrapper && record.attributeName === 'class');
-      if (this.current && transitions.some(record => !(record.oldValue ?? '').split(/\s+/).includes('s-play'))) this.invalidate();
+      if (this.current && transitions.some(record => /(?:^|\s)s-(?:stop|search)(?:\s|$)/.test(record.oldValue ?? ''))) this.invalidate();
       this.check();
     });
     this.observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'src'] });

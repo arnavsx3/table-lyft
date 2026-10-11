@@ -7,6 +7,8 @@ export const STATS_KEY = 'wingman_stats';
 export type Mutation =
   | { type: 'settings'; patch: Partial<WingmanSettings> }
   | { type: 'toggle' }
+  | { type: 'session' }
+  | { type: 'manualSkip' }
   | { type: 'skip'; gender: GenderType }
   | { type: 'keep'; gender: GenderType }
   | { type: 'reset' };
@@ -19,7 +21,7 @@ interface StorageArea {
 export function isMutation(value: unknown): value is Mutation {
   if (!value || typeof value !== 'object') return false;
   const input = value as Record<string, unknown>;
-  if (input.type === 'toggle' || input.type === 'reset') return true;
+  if (['toggle', 'reset', 'session', 'manualSkip'].includes(String(input.type))) return true;
   if (input.type === 'settings') return !!input.patch && typeof input.patch === 'object' && !Array.isArray(input.patch);
   return (input.type === 'skip' || input.type === 'keep') && ['male', 'female', 'unknown'].includes(String(input.gender));
 }
@@ -39,7 +41,9 @@ export function createStorageService(storage: StorageArea) {
       }
       const data = await storage.get(STATS_KEY);
       const stats = mutation.type === 'reset' ? freshStats() : normalizeStats(data[STATS_KEY]);
-      if (mutation.type === 'skip') {
+      if (mutation.type === 'session') stats.totalSessions++;
+      else if (mutation.type === 'manualSkip') stats.totalSkipped++;
+      else if (mutation.type === 'skip') {
         stats.totalSkipped++;
         if (mutation.gender === 'male') stats.malesSkipped++;
         if (mutation.gender === 'unknown') stats.unknownSkipped++;

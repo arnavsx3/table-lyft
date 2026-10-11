@@ -1,29 +1,32 @@
 # Wingman Privacy
 
-Version 1.1.0, October 12, 2026.
+Version 1.2.0, October 12, 2026.
 
-## Video Processing
+## Page Access
 
-Wingman reads the remote video element on supported OmeTV and MiniChat pages to run an appearance-based estimate locally. Frames are used transiently by the model; Wingman does not save screenshots, record video, build face profiles, or identify people. The existing model also produces an age output internally, which Wingman neither logs nor persists.
+Wingman observes the supported page's remote-video element, stream/track identifiers, playback state, and controls to detect connections. These identifiers remain in page memory and are not persisted.
 
-The model and weights ship inside the extension. Wingman does not upload frames, predictions, chat messages, identities, or browsing history. It does not intercept WebSocket, WebRTC, or fetch traffic. The website itself remains responsible for its own camera, microphone, network, and data processing behavior.
+This release does not read video pixels, run appearance or gender classification, save screenshots, record media, or identify people. Video models and inference code are excluded from browser bundles. Legacy sources remain in the repository but are not part of the active runtime.
+
+Wingman does not upload media, chat messages, identities, or browsing history. It does not intercept WebSocket, WebRTC, or fetch traffic. The website remains responsible for its own camera, microphone, network, and data processing.
 
 ## Local Storage
 
 Extension-local storage contains:
 
-- Filtering preferences, confidence threshold, delay, uncertainty behavior, and display/audio preferences.
-- Aggregate counts of automatically requested skips, confidently kept matches, male estimates skipped, female estimates kept, and uncertain skips.
-- The timestamp when statistics were initialized or last reset.
+- Tracking, HUD display, and connection-audio preferences.
+- Aggregate observed session and manual-skip counts.
+- A timestamp for statistics initialization or reset.
+- Preserved legacy preferences and aggregate counters, no longer used for filtering or displayed.
 
-Storage is shared across Wingman tabs in the same browser profile. There is no Wingman server, account, analytics endpoint, or cloud synchronization. Counters do not contain connection identifiers, images, names, countries, or per-person history. Connection IDs used to cancel stale work exist only in page memory.
+Storage is shared across Wingman tabs in the browser profile. There is no Wingman server, account, analytics endpoint, or cloud synchronization. Counters contain no connection identifiers, images, names, locations, or per-person history.
 
-Reset the aggregate counters through the popup's reset confirmation. Uninstalling the extension removes its local extension storage. Defaults are applied if saved values are missing or invalid.
+Reset aggregate counters through the settings panel's confirmation. Uninstalling removes local extension storage. Missing or invalid values receive defaults.
 
 ## Permissions and Links
 
-The storage permission saves preferences and counters. Site access is restricted to OmeTV and MiniChat and their subdomains. Model resources are exposed only to those matching sites so the content script can load them. Wingman requests no additional camera, microphone, browsing-history, or broad all-sites permission.
+The storage permission saves preferences and counters. Site access is restricted to OmeTV and MiniChat and their subdomains. Wingman requests no camera, microphone, browsing-history, or broad all-sites permission.
 
-GitHub links open only when clicked. Normal requests to GitHub then follow GitHub's privacy practices. This policy describes Wingman's behavior and does not replace the policies of websites you visit or your browser.
+GitHub links open only when clicked; GitHub's privacy practices then apply. This policy does not replace website or browser policies.
 
-For questions or issues, use the [project repository](https://github.com/arnavsx3/wingman/issues). Avoid attaching identifiable images or chat content to public reports.
+For issues, use the [project repository](https://github.com/arnavsx3/wingman/issues). Do not attach identifiable images or chat content.

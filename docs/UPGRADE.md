@@ -1,5 +1,7 @@
 # 1.1 Upgrade Plan and Verification
 
+Historical plan for 1.1. Version 1.2 replaces the active filtering runtime with manual session controls and excludes video inference from browser bundles. See the current README and changelog for behavior and verification.
+
 ## Scope
 
 Stabilize the existing local visual-detection approach, fix incorrect filter and counting behavior, make uncertainty explicit, and deliver usable cross-browser packages. Preserve existing stored preferences and aggregate statistics. Publishing to extension stores, introducing a server, and retraining the model are outside this release.
