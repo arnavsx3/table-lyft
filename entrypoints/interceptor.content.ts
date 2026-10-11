@@ -1,5 +1,3 @@
-import { WINGMAN_WS_EVENT_NAME } from '@/modules/ometv/constants';
-
 export default defineContentScript({
   matches: [
     '*://*.ome.tv/*',
@@ -10,36 +8,45 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_start',
   main() {
-    console.log('[Wingman] Injected main-world WebSocket interceptor active.');
+    console.log('[Wingman] Injected main-world interceptor active.');
 
     const OriginalWebSocket = window.WebSocket;
-    const activeSockets = new Set<WebSocket>();
+    const OriginalPeerConnection = window.RTCPeerConnection;
+    const OriginalFetch = window.fetch;
 
-    function inspectMessage(data: any) {
-      if (typeof data !== 'string') return;
+    function processIncoming(data: any, channel = 'WS') {
+      if (!data) return;
 
-      // Debug log incoming message for diagnosis
-      if (data.includes('{') || data.includes('gender') || data.includes('user')) {
-        console.log('[Wingman WS message]:', data.slice(0, 300));
+      if (data instanceof Blob) {
+        data.text().then((text) => inspectMessage(text, channel)).catch(() => {});
+        return;
       }
+      if (data instanceof ArrayBuffer) {
+        try {
+          const text = new TextDecoder().decode(data);
+          inspectMessage(text, channel);
+        } catch {}
+        return;
+      }
+      if (typeof data === 'string') {
+        inspectMessage(data, channel);
+      }
+    }
+
+    function inspectMessage(data: string, channel: string) {
+      // Log for diagnosis
+      console.log(`[Wingman ${channel} Frame]:`, data.length > 250 ? data.slice(0, 250) + '...' : data);
 
       try {
-        // Try parsing JSON payload
         const parsed = JSON.parse(data);
         parsePayload(parsed);
       } catch {
-        // Some protocols use key:value or delimiter strings
-        if (typeof data === 'string' && (data.includes('gender') || data.includes('client') || data.includes('"g"'))) {
-          try {
-            const match = data.match(/"gender"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i) ||
-                          data.match(/"g"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i) ||
-                          data.match(/"sex"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i);
-            if (match) {
-              notifyWingman(normalizeGender(match[1]), undefined, data);
-            }
-          } catch (e) {
-            // Ignore parsing errors
-          }
+        // Regex extraction for non-JSON or packed formats
+        const match = data.match(/"gender"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i) ||
+                      data.match(/"g"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i) ||
+                      data.match(/"sex"\s*:\s*"?([a-zA-Z0-9_-]+)"?/i);
+        if (match) {
+          notifyWingman(normalizeGender(match[1]), undefined, data);
         }
       }
     }
@@ -47,29 +54,32 @@ export default defineContentScript({
     function parsePayload(payload: any) {
       if (!payload || typeof payload !== 'object') return;
 
-      // Extract gender from object or nested objects
-      const genderRaw = payload.gender ||
-                        payload.g ||
-                        payload.sex ||
-                        payload.user?.gender ||
-                        payload.partner?.gender ||
-                        payload.client?.gender ||
-                        payload.stranger?.gender;
+      // Extract gender from various schemas
+      const genderRaw = payload.gender ??
+                        payload.g ??
+                        payload.sex ??
+                        payload.user?.gender ??
+                        payload.partner?.gender ??
+                        payload.client?.gender ??
+                        payload.stranger?.gender ??
+                        payload.peer?.gender ??
+                        payload.data?.gender;
 
-      const country = payload.country ||
-                      payload.c ||
-                      payload.user?.country ||
-                      payload.partner?.country ||
+      const country = payload.country ??
+                      payload.c ??
+                      payload.user?.country ??
+                      payload.partner?.country ??
                       payload.client?.country;
 
       if (genderRaw !== undefined) {
-        notifyWingman(normalizeGender(genderRaw), country, payload);
+        const normalized = normalizeGender(genderRaw);
+        console.log(`[Wingman] Extracted gender: "${genderRaw}" -> ${normalized}`);
+        notifyWingman(normalized, country, payload);
       }
     }
 
     function normalizeGender(val: any): 'male' | 'female' | 'unknown' {
       if (typeof val === 'number') {
-        // Frequently 1=male, 2=female or vice versa
         if (val === 1) return 'male';
         if (val === 2) return 'female';
       }
@@ -92,28 +102,31 @@ export default defineContentScript({
       }, '*');
     }
 
-    // Proxy WebSocket
+    // 1. Hook WebSocket
     // @ts-ignore
     window.WebSocket = function (url: string | URL, protocols?: string | string[]) {
+      console.log('[Wingman WS] Connection initiated to:', String(url));
       const ws = new OriginalWebSocket(url, protocols);
-      activeSockets.add(ws);
 
       ws.addEventListener('message', (event: MessageEvent) => {
         try {
-          inspectMessage(event.data);
+          processIncoming(event.data, 'WS');
         } catch (err) {
           console.error('[Wingman] Error inspecting WS frame:', err);
         }
       });
 
-      ws.addEventListener('close', () => {
-        activeSockets.delete(ws);
-      });
+      const origSend = ws.send;
+      ws.send = function (data: any) {
+        if (typeof data === 'string' && (data.includes('gender') || data.includes('ready') || data.includes('next'))) {
+          console.log('[Wingman WS -> Server]:', data.slice(0, 200));
+        }
+        return origSend.apply(this, arguments as any);
+      };
 
       return ws;
     };
 
-    // Retain prototype chain & static properties
     window.WebSocket.prototype = OriginalWebSocket.prototype;
     // @ts-ignore
     window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
@@ -123,5 +136,39 @@ export default defineContentScript({
     window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
     // @ts-ignore
     window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+
+    // 2. Hook WebRTC PeerConnection & DataChannels
+    if (OriginalPeerConnection) {
+      // @ts-ignore
+      window.RTCPeerConnection = function (...args: any[]) {
+        console.log('[Wingman WebRTC] PeerConnection created');
+        const pc = new OriginalPeerConnection(...args);
+
+        pc.addEventListener('datachannel', (event: RTCDataChannelEvent) => {
+          console.log('[Wingman WebRTC] DataChannel open:', event.channel.label);
+          event.channel.addEventListener('message', (msgEvt) => {
+            processIncoming(msgEvt.data, 'RTC');
+          });
+        });
+
+        return pc;
+      };
+      window.RTCPeerConnection.prototype = OriginalPeerConnection.prototype;
+    }
+
+    // 3. Hook fetch for matchmaking endpoints
+    window.fetch = async function (...args: any[]) {
+      const url = String(args[0] || '');
+      const response = await OriginalFetch.apply(this, args as any);
+
+      if (url.includes('match') || url.includes('partner') || url.includes('user') || url.includes('client')) {
+        try {
+          const clone = response.clone();
+          clone.json().then((json) => parsePayload(json)).catch(() => {});
+        } catch {}
+      }
+
+      return response;
+    };
   }
 });
