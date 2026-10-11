@@ -2,7 +2,7 @@ import { getSettings, saveSettings, getStats, recordSkip, recordMatch, onSetting
 import { OmePartnerDetector } from '@/modules/ometv/detector';
 import { OmeSkipper } from '@/modules/ometv/skipper';
 import { WingmanInPageHud } from '@/modules/ometv/hud';
-import { PartnerDetectedEvent, WingmanSettings, WingmanStats } from '@/modules/types';
+import type { PartnerDetectedEvent, WingmanSettings, WingmanStats } from '@/modules/types';
 
 export default defineContentScript({
   matches: ['*://*.ome.tv/*', '*://ome.tv/*'],

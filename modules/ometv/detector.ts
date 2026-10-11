@@ -1,5 +1,5 @@
 import { OMETV_SELECTORS, MALE_IDENTIFIERS, FEMALE_IDENTIFIERS } from './constants';
-import { GenderType, PartnerDetectedEvent } from '../types';
+import type { GenderType, PartnerDetectedEvent } from '../types';
 
 export class OmePartnerDetector {
   private observer: MutationObserver | null = null;

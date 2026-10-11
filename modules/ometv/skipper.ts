@@ -1,5 +1,5 @@
 import { OMETV_SELECTORS } from './constants';
-import { WingmanSettings } from '../types';
+import type { WingmanSettings } from '../types';
 
 export class OmeSkipper {
   private isSkipping = false;

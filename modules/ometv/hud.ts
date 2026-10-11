@@ -1,4 +1,4 @@
-import { WingmanSettings, WingmanStats } from '../types';
+import type { WingmanSettings, WingmanStats } from '../types';
 
 export class WingmanInPageHud {
   private container: HTMLDivElement | null = null;
