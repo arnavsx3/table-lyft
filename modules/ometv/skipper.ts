@@ -10,28 +10,43 @@ export class OmeSkipper {
 
   /**
    * Performs an anti-detection humanized skip with randomized delay
+   * Automatically queues or waits for safety cooldown instead of dropping
    */
   public async skipPartner(settings: WingmanSettings, onSkipTriggered?: () => void): Promise<boolean> {
-    const now = Date.now();
-    // Safety cooldown of 800ms between skip actions to avoid spamming
-    if (this.isSkipping || now - this.lastSkipTime < 800) {
-      return false;
-    }
-
+    if (this.isSkipping) return false;
     this.isSkipping = true;
 
-    // Calculate randomized jitter delay to simulate human reaction time
-    const minDelay = Math.max(150, settings.skipDelayMinMs);
-    const maxDelay = Math.max(minDelay, settings.skipDelayMaxMs);
-    const jitter = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-
-    await new Promise((resolve) => setTimeout(resolve, jitter));
-
     try {
+      const now = Date.now();
+      // Ensure at least 450ms between skips to satisfy OmeTV rate limiters
+      const elapsedSinceLast = now - this.lastSkipTime;
+      if (elapsedSinceLast < 450) {
+        await new Promise((resolve) => setTimeout(resolve, 450 - elapsedSinceLast));
+      }
+
+      // Calculate randomized jitter delay to simulate human reaction time
+      const minDelay = Math.max(120, settings.skipDelayMinMs);
+      const maxDelay = Math.max(minDelay, settings.skipDelayMaxMs);
+      const jitter = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+
+      await new Promise((resolve) => setTimeout(resolve, jitter));
+
       const executed = this.executeSkipAction();
       if (executed) {
         this.lastSkipTime = Date.now();
         onSkipTriggered?.();
+
+        // Anti-hang safety retry: if still on the same video after 600ms, re-trigger
+        setTimeout(() => {
+          const wrapper = document.querySelector('#remote-video-wrapper');
+          if (wrapper?.classList.contains('s-play')) {
+            const nextBtn = this.findNextButton();
+            if (nextBtn) {
+              console.log('[Wingman Skipper] Anti-hang retry: re-clicking Next button...');
+              nextBtn.click();
+            }
+          }
+        }, 600);
       }
       return executed;
     } finally {
@@ -40,22 +55,31 @@ export class OmeSkipper {
   }
 
   /**
-   * Executes the skip action using DOM clicks and keyboard shortcuts
+   * Executes the skip action using direct click + simulated pointer events
    */
   private executeSkipAction(): boolean {
-    // 1. Try DOM button click
     const nextBtn = this.findNextButton();
     if (nextBtn) {
       this.simulateHumanClick(nextBtn);
+      // Also invoke direct click as guaranteed fallback
+      try {
+        nextBtn.click();
+      } catch {}
       return true;
     }
 
-    // 2. Fallback: Simulate Right Arrow keypress (standard OmeTV shortcut)
+    // Fallback: keyboard shortcut
     return this.simulateKeyPress('ArrowRight', 39);
   }
 
   private findNextButton(): HTMLElement | null {
-    // Query known selectors
+    // 1. Direct confirmed OmeTV button selector
+    const directBtn = document.querySelector('.btn.btn-main .btn__bg, .btn.btn-main') as HTMLElement | null;
+    if (directBtn && this.isElementVisible(directBtn)) {
+      return directBtn;
+    }
+
+    // 2. Query known selectors
     for (const selector of OMETV_SELECTORS.nextButton) {
       const el = document.querySelector(selector) as HTMLElement;
       if (el && this.isElementVisible(el)) {
@@ -63,11 +87,11 @@ export class OmeSkipper {
       }
     }
 
-    // Fallback: search all buttons for text like "Next" or "Skip"
-    const buttons = document.querySelectorAll('button, div[role="button"]');
+    // 3. Fallback: search buttons for text like "Next"
+    const buttons = document.querySelectorAll('button, div[role="button"], .btn');
     for (const btn of Array.from(buttons)) {
       const text = (btn.textContent || '').trim().toLowerCase();
-      if ((text.includes('next') || text.includes('skip')) && this.isElementVisible(btn as HTMLElement)) {
+      if (text.includes('next') && this.isElementVisible(btn as HTMLElement)) {
         return btn as HTMLElement;
       }
     }
@@ -96,7 +120,6 @@ export class OmeSkipper {
     element.dispatchEvent(new MouseEvent('mousedown', eventInit));
     element.dispatchEvent(new PointerEvent('pointerup', eventInit));
     element.dispatchEvent(new MouseEvent('mouseup', eventInit));
-    element.click();
   }
 
   private simulateKeyPress(key: string, keyCode: number): boolean {

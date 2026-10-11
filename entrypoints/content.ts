@@ -1,5 +1,4 @@
 import { getSettings, saveSettings, getStats, recordSkip, recordMatch, onSettingsChanged, onStatsChanged } from '@/modules/storage';
-import { OmePartnerDetector } from '@/modules/ometv/detector';
 import { OmeSkipper } from '@/modules/ometv/skipper';
 import { WingmanInPageHud } from '@/modules/ometv/hud';
 import { OmeAiVisionDetector } from '@/modules/ometv/vision';
@@ -19,7 +18,9 @@ export default defineContentScript({
     let settings: WingmanSettings = await getSettings();
     let stats: WingmanStats = await getStats();
 
-    const detector = new OmePartnerDetector();
+    // Per-partner guard: ensures one callback fires per stranger regardless of source
+    let currentPartnerHandled = false;
+
     const skipper = new OmeSkipper();
     const hud = new WingmanInPageHud();
     const vision = new OmeAiVisionDetector();
@@ -47,8 +48,34 @@ export default defineContentScript({
       hud.update(settings, stats);
     });
 
+    // Reset partner guard whenever video goes to idle/searching state
+    const wrapperEl = document.querySelector('#remote-video-wrapper');
+    const guardResetObserver = new MutationObserver(() => {
+      const isPlaying = document.querySelector('#remote-video-wrapper')?.classList.contains('s-play');
+      if (!isPlaying) {
+        currentPartnerHandled = false;
+      }
+    });
+    if (wrapperEl) {
+      guardResetObserver.observe(wrapperEl, { attributes: true, attributeFilter: ['class'] });
+    }
+    // Fallback poll to ensure reset even if observer misses the transition
+    window.setInterval(() => {
+      const isPlaying = document.querySelector('#remote-video-wrapper')?.classList.contains('s-play');
+      if (!isPlaying) {
+        currentPartnerHandled = false;
+      }
+    }, 500);
+
     const handlePartnerEvent = async (event: PartnerDetectedEvent) => {
       if (!settings.enabled) return;
+
+      // Block duplicate events for the same connected stranger
+      if (currentPartnerHandled) {
+        console.log(`[Wingman] Duplicate event suppressed for current partner (${event.gender})`);
+        return;
+      }
+      currentPartnerHandled = true;
 
       console.log(`[Wingman] Partner detected: [${event.gender.toUpperCase()}] via ${event.source}`);
 
@@ -77,10 +104,7 @@ export default defineContentScript({
       }
     };
 
-    // 1. Text/WebSocket/DOM detection
-    detector.start(handlePartnerEvent);
-
-    // 2. Real-time AI Face & Gender Vision detection on #remote-video
+    // AI Face & Gender Vision detection on #remote-video (sole detection source)
     await vision.init((event) => {
       handlePartnerEvent(event);
     });
