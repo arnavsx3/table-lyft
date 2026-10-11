@@ -80,17 +80,22 @@ test('shortcut ignores text entry and keeps popup, HUD and badge in sync', async
   await expect.poll(() => worker.evaluate(() => chrome.action.getBadgeText({}))).toBe('OFF');
 });
 
-test('background serializes cross-context writes and popup reset requires confirmation', async ({ extension: { popup, worker } }) => {
+test('background serializes counter writes and syncs the HUD through reset', async ({ extension: { popup, site, worker } }) => {
   await popup.evaluate(async () => Promise.all(Array.from({ length: 20 }, () =>
     chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation: { type: 'skip', gender: 'male' } }))));
   await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(20);
   await expect(popup.locator('.stats').getByText('20', { exact: true })).toBeVisible();
+  const hud = site.getByRole('complementary', { name: 'Wingman' });
+  await expect(hud.getByText('Skipped 20', { exact: true })).toBeVisible();
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Cancel reset' }).click();
   await expect(popup.locator('.stats').getByText('20', { exact: true })).toBeVisible();
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Reset all' }).click();
   await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(0);
+  await expect(hud.getByText('Skipped 0', { exact: true })).toBeVisible();
+  await site.reload();
+  await expect(site.getByRole('complementary', { name: 'Wingman' }).getByText('Skipped 0', { exact: true })).toBeVisible();
 });
 
 test('real bundled models handle a blank stream as unknown and skip only when enabled', async ({ extension: { site, popup, worker } }) => {
