@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - 2026-10-12
+
+### Fixed
+
+- Prevent the settings panel from collapsing to the browser action's initial narrow width.
+- Use a 520-pixel settings panel with two-column detection controls and preferences.
+- Verify native browser action dimensions, including the expanded uncertainty settings.
+
 ## 1.1.0 - 2026-10-12
 
 ### Fixed

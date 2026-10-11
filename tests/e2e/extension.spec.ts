@@ -12,7 +12,7 @@ const test = base.extend<{ extension: ExtensionFixture }>({
     const extensionPath = path.resolve('dist/chrome-mv3');
     const context = await chromium.launchPersistentContext(profile, {
       channel: 'chromium', headless: true, viewport: { width: 1280, height: 800 },
-      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`, '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`, '--window-size=1280,900', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     });
     try {
       const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
@@ -119,12 +119,55 @@ test('real bundled models handle a blank stream as unknown and skip only when en
   await expect(popup.locator('.stats .rose')).toHaveText('1');
 });
 
-test('popup and HUD fit compact, standard and desktop viewports', async ({ extension: { popup, site } }, testInfo) => {
-  for (const width of [320, 360]) {
-    await popup.setViewportSize({ width, height: 780 });
-    expect(await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await popup.screenshot({ path: testInfo.outputPath(`popup-${width}.png`), fullPage: true });
-  }
+test('settings panel stays wide in a real browser action window', async ({ extension: { context, worker, popup } }, testInfo) => {
+  await popup.getByRole('checkbox', { name: 'Skip uncertain matches' }).check();
+  await worker.evaluate(() => chrome.action.openPopup());
+  const session = await context.browser()!.newBrowserCDPSession();
+  try {
+    const { targetInfos } = await session.send('Target.getTargets');
+    const target = targetInfos.find(target => target.url === popup.url() && !target.attached);
+    expect(target, 'Actual browser action window exists').toBeDefined();
+    const { sessionId } = await session.send('Target.attachToTarget', { targetId: target!.targetId, flatten: false });
+    // Action windows are not exposed as Playwright pages, so measure the native target.
+    let messageId = 0;
+    const readLayout = async () => {
+      const id = ++messageId;
+      const result = new Promise<string>(resolve => {
+        const listener = (event: { sessionId: string; message: string }) => {
+          if (event.sessionId !== sessionId) return;
+          const response = JSON.parse(event.message);
+          if (response.id !== id) return;
+          session.off('Target.receivedMessageFromTarget', listener);
+          resolve(response.result.result.value);
+        };
+        session.on('Target.receivedMessageFromTarget', listener);
+      });
+      await session.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({
+        id, method: 'Runtime.evaluate', params: { returnByValue: true, expression: `JSON.stringify({
+          width: innerWidth, height: innerHeight, contentWidth: document.body.clientWidth,
+          ready: !!document.querySelector('#uncertain:checked'),
+          controlsFit: Array.from(document.querySelectorAll('button,input,select')).every(element => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.left >= 0 && bounds.right <= innerWidth;
+          }),
+          scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight
+        })` },
+      }) });
+      return JSON.parse(await result);
+    };
+    await expect.poll(readLayout).toMatchObject({ contentWidth: 520, ready: true, controlsFit: true });
+    const layout = await readLayout();
+    expect(layout.width).toBeGreaterThanOrEqual(520);
+    expect(layout.width).toBeLessThanOrEqual(535); // Native scrollbar on shorter displays.
+    expect(layout.scrollWidth).toBe(layout.width);
+    expect(layout.height).toBeLessThanOrEqual(600);
+    expect(layout.scrollHeight).toBeLessThanOrEqual(600);
+  } finally { await session.detach(); }
+  await popup.setViewportSize({ width: 520, height: 600 });
+  await popup.screenshot({ path: testInfo.outputPath('settings-panel.png'), fullPage: true });
+});
+
+test('HUD fits mobile and desktop viewports', async ({ extension: { site } }, testInfo) => {
   for (const width of [320, 1280]) {
     await site.setViewportSize({ width, height: 800 });
     const hud = site.getByRole('complementary', { name: 'Wingman' });
