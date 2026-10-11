@@ -5,6 +5,7 @@ import { SITE_MATCHES } from './modules/ometv/constants';
 export default defineConfig({
   outDir: 'dist',
   modules: ['@wxt-dev/module-react'],
+  zip: { excludeSources: ['test-results/**', 'playwright-report/**'] },
   manifest: {
     name: 'Wingman - OmeTV Smart Filter',
     description: 'On-device OmeTV connection filtering with confidence controls and cancellable auto-skip.',
