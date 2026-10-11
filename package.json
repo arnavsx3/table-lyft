@@ -8,7 +8,7 @@
     "dev": "node scripts/generate-icons.js && wxt",
     "dev:firefox": "node scripts/generate-icons.js && wxt -b firefox",
     "build": "node scripts/generate-icons.js && wxt build",
-    "build:firefox": "node scripts/generate-icons.js && wxt -b firefox",
+    "build:firefox": "node scripts/generate-icons.js && wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "wxt prepare && tsc --noEmit"
