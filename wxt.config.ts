@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import { SITE_MATCHES } from './modules/ometv/constants';
 
 // https://wxt.dev/api/config.html
 export default defineConfig({
@@ -6,15 +7,9 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'Wingman - OmeTV Smart Filter',
-    description: 'Auto-filter and skip OmeTV connections based on gender preferences.',
-    version: '1.0.0',
+    description: 'On-device OmeTV connection filtering with confidence controls and cancellable auto-skip.',
     permissions: ['storage'],
-    host_permissions: [
-      '*://*.ome.tv/*',
-      '*://ome.tv/*',
-      '*://*.minichat.com/*',
-      '*://minichat.com/*'
-    ],
+    host_permissions: SITE_MATCHES,
     action: {
       default_title: 'Wingman Controller',
       default_icon: {
@@ -33,13 +28,14 @@ export default defineConfig({
     web_accessible_resources: [
       {
         resources: ['models/*'],
-        matches: ['*://*.ome.tv/*', '*://ome.tv/*', '*://*.minichat.com/*', '*://minichat.com/*']
+        matches: SITE_MATCHES
       }
     ],
     browser_specific_settings: {
       gecko: {
         id: 'wingman-extension@arnavsx3.github.io',
-        strict_min_version: '109.0'
+        strict_min_version: '109.0',
+        data_collection_permissions: { required: ['none'] }
       }
     }
   }

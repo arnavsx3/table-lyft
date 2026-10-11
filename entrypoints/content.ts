@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import { getSettings, getStats, recordSkip, recordMatch, toggleEnabled, onSettingsChanged, onStatsChanged } from '@/modules/storage';
+import { getSettings, saveSettings, getStats, recordSkip, recordMatch, toggleEnabled, onSettingsChanged, onStatsChanged } from '@/modules/storage';
 import { OmeSkipper, findNextButton } from '@/modules/ometv/skipper';
 import { WingmanInPageHud } from '@/modules/ometv/hud';
 import { OmeAiVisionDetector } from '@/modules/ometv/vision';
@@ -20,7 +20,7 @@ export default defineContentScript({
     const hud = new WingmanInPageHud();
     const setStatus = (next: RuntimeStatus) => {
       status = next;
-      hud.setStatusText(next.message, ['error', 'model_error', 'skip_unavailable'].includes(next.state) ? '#fb7185' : '#82d6bc');
+      hud.setStatus(next);
     };
     const tracker = new PartnerSessionTracker(session => controller.setSession(session));
     const controller = new WingmanController(settings, {
@@ -28,7 +28,9 @@ export default defineContentScript({
       isCurrent: id => tracker.isCurrent(id), recordSkip, recordMatch, onStatus: setStatus,
     });
     const toggle = () => { void toggleEnabled().catch(() => setStatus({ state: 'error', message: 'Could not save settings' })); };
-    hud.init(toggle);
+    hud.init(toggle, () => controller.retry(), () => {
+      void saveSettings({ showInPageHud: false }).catch(() => setStatus({ state: 'error', message: 'Could not save settings' }));
+    });
     hud.update(settings, stats);
 
     const unwatchSettings = onSettingsChanged(next => {

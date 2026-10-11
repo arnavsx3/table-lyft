@@ -1,250 +1,149 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Flame,
-  Shield,
-  Volume2,
-  Layout,
-  RefreshCw,
-  Sliders,
-  CheckCircle2,
-  Users,
-  Heart
-} from 'lucide-react';
-import {
-  getSettings,
-  saveSettings,
-  getStats,
-  resetStats,
-  onSettingsChanged,
-  onStatsChanged
-} from '@/modules/storage';
-import type { TargetGender, WingmanSettings, WingmanStats } from '@/modules/types';
+import { useEffect, useRef, useState } from 'react';
+import { browser } from 'wxt/browser';
+import { Activity, ArrowUpRight, Check, CircleAlert, Eye, Heart, LoaderCircle, RotateCcw, ShieldCheck, SlidersHorizontal, Users, Volume2, X } from 'lucide-react';
+import { getSettings, saveSettings, toggleEnabled, getStats, resetStats, onSettingsChanged, onStatsChanged } from '@/modules/storage';
+import type { RuntimeStatus, TargetGender, WingmanSettings, WingmanStats } from '@/modules/types';
+
+function Toggle({ label, checked, disabled, onChange }: {
+  label: string; checked: boolean; disabled?: boolean; onChange: () => void;
+}) {
+  return <label className="switch"><input type="checkbox" role="switch" aria-label={label}
+    checked={checked} disabled={disabled} onChange={onChange} /><span /></label>;
+}
+
+function Range({ label, value, min, max, step, format, disabled, onSave }: {
+  label: string; value: number; min: number; max: number; step: number; format: (value: number) => string;
+  disabled?: boolean; onSave: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const submitted = useRef(value);
+  useEffect(() => { setDraft(value); submitted.current = value; }, [value]);
+  const commit = (next: number) => {
+    if (submitted.current === next) return;
+    submitted.current = next;
+    onSave(next);
+  };
+  return <label className="range-setting"><span className="range-heading"><span>{label}</span><output>{format(draft)}</output></span>
+    <input type="range" min={min} max={max} step={step} value={draft} disabled={disabled} aria-label={label}
+      aria-valuetext={format(draft)} onChange={event => setDraft(Number(event.target.value))}
+      onPointerUp={event => commit(Number(event.currentTarget.value))}
+      onKeyUp={event => commit(Number(event.currentTarget.value))}
+      onBlur={event => commit(Number(event.currentTarget.value))} />
+  </label>;
+}
+
+const unsupported: RuntimeStatus = { state: 'waiting', message: 'Open OmeTV to connect' };
+const retryStates = ['model_error', 'skip_unavailable', 'error', 'uncertain'];
 
 export default function App() {
   const [settings, setSettings] = useState<WingmanSettings | null>(null);
   const [stats, setStats] = useState<WingmanStats | null>(null);
+  const [status, setStatus] = useState<RuntimeStatus>(unsupported);
+  const [tabId, setTabId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    // Load initial data
-    getSettings().then(setSettings);
-    getStats().then(setStats);
-
-    // Subscribe to updates
-    onSettingsChanged(setSettings);
-    onStatsChanged(setStats);
+    let active = true;
+    const unwatchSettings = onSettingsChanged(next => { if (active) setSettings(next); });
+    const unwatchStats = onStatsChanged(next => { if (active) setStats(next); });
+    Promise.all([getSettings(), getStats()]).then(([nextSettings, nextStats]) => {
+      if (active) { setSettings(nextSettings); setStats(nextStats); }
+    }).catch(() => { if (active) setError('Could not load saved settings. Reopen Wingman to try again.'); });
+    const refresh = async () => {
+      try {
+        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id || !tab.url || !/^https?:\/\/([^/]+\.)?(ome\.tv|minichat\.com)(\/|$)/i.test(tab.url)) {
+          if (active) { setTabId(null); setStatus(unsupported); }
+          return;
+        }
+        if (active) setTabId(tab.id);
+        const next: RuntimeStatus = await browser.tabs.sendMessage(tab.id, { type: 'WINGMAN_STATUS' });
+        if (active && next?.state && typeof next.message === 'string') setStatus(next);
+      } catch { if (active) setStatus({ state: 'error', message: 'Refresh this page to connect Wingman' }); }
+    };
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 1500);
+    return () => { active = false; clearInterval(timer); unwatchSettings(); unwatchStats(); };
   }, []);
 
-  if (!settings || !stats) {
-    return (
-      <div className="container" style={{ textAlign: 'center', padding: '40px' }}>
-        <span>Loading Wingman...</span>
-      </div>
-    );
-  }
-
-  const handleToggleEnabled = async () => {
-    const updated = await saveSettings({ enabled: !settings.enabled });
-    setSettings(updated);
-  };
-
-  const handleTargetGenderChange = async (target: TargetGender) => {
-    const updated = await saveSettings({ targetGender: target });
-    setSettings(updated);
-  };
-
-  const handleDelayChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    const updated = await saveSettings({
-      skipDelayMinMs: Math.max(150, val - 150),
-      skipDelayMaxMs: val + 150,
-    });
-    setSettings(updated);
-  };
-
-  const handleToggleHud = async () => {
-    const updated = await saveSettings({ showInPageHud: !settings.showInPageHud });
-    setSettings(updated);
-  };
-
-  const handleToggleSound = async () => {
-    const updated = await saveSettings({ soundAlertOnMatch: !settings.soundAlertOnMatch });
-    setSettings(updated);
-  };
-
-  const handleResetStats = async () => {
-    if (confirm('Reset matchmaking statistics for this session?')) {
-      const fresh = await resetStats();
-      setStats(fresh);
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true); setError('');
+    try { await action(); }
+    catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save changes. Please try again.');
+      try { setSettings(await getSettings()); } catch { /* Keep the existing error visible. */ }
     }
+    finally { setBusy(false); }
   };
+  const save = (patch: Partial<WingmanSettings>) => {
+    setSettings(current => current ? { ...current, ...patch } : current);
+    void run(async () => { setSettings(await saveSettings(patch)); });
+  };
+  const retry = () => { if (tabId !== null) void run(() => browser.tabs.sendMessage(tabId, { type: 'WINGMAN_RETRY' })); };
 
-  const midDelay = Math.round((settings.skipDelayMinMs + settings.skipDelayMaxMs) / 2);
+  if (!settings || !stats) return <main className="loading" aria-live="polite"><img src="/icon-48.png" width="40" height="40" alt="" />
+    <h1>Wingman</h1>{error ? <p role="alert">{error}</p> : <LoaderCircle className="spin" size={20} aria-label="Loading" />}</main>;
 
-  return (
-    <div className="container">
-      {/* Header */}
-      <div className="header">
-        <div className="brand">
-          <div className="brand-icon">
-            <Flame size={18} color="#fff" />
-          </div>
-          <span className="brand-title">Wingman</span>
-          <span className="badge">v1.0</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: settings.enabled ? '#10b981' : '#64748b',
-              boxShadow: settings.enabled ? '0 0 8px #10b981' : 'none'
-            }}
-          />
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>
-            {settings.enabled ? 'Active' : 'Paused'}
-          </span>
-        </div>
-      </div>
+  const active = settings.enabled && settings.targetGender !== 'all';
+  const delay = Math.round((settings.skipDelayMinMs + settings.skipDelayMaxMs) / 2);
+  return <main className="app">
+    <header className="header"><div className="brand"><img src="/icon-48.png" width="32" height="32" alt="" /><h1>Wingman</h1>
+      <span className="version">{browser.runtime.getManifest().version}</span></div>
+      <span className={`activity ${active ? 'on' : ''}`}><span />{active ? 'On' : 'Paused'}</span></header>
 
-      {/* Master Toggle */}
-      <div className="master-card">
-        <div className="master-info">
-          <span className="master-label">Auto-Skip Matchmaker</span>
-          <span className="master-desc">
-            {settings.enabled
-              ? 'Automatically filtering connections'
-              : 'Filtering temporarily suspended'}
-          </span>
-        </div>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            onChange={handleToggleEnabled}
-          />
-          <span className="slider"></span>
-        </label>
-      </div>
+    <section className="master"><div><h2>Auto-skip</h2><span className="muted">OmeTV / MiniChat</span></div>
+      <Toggle label="Auto-skip" checked={settings.enabled} disabled={busy}
+        onChange={() => {
+          setSettings({ ...settings, enabled: !settings.enabled });
+          void run(async () => setSettings(await toggleEnabled()));
+        }} /></section>
 
-      {/* Matchmaking Filter Mode */}
-      <div className="card">
-        <div className="card-title">
-          <Users size={12} />
-          Target Filter
-        </div>
-        <div className="mode-group">
-          <button
-            className={`mode-btn ${settings.targetGender === 'girls_only' ? 'active' : ''}`}
-            onClick={() => handleTargetGenderChange('girls_only')}
-          >
-            <Heart size={14} color={settings.targetGender === 'girls_only' ? '#ec4899' : '#94a3b8'} />
-            Girls Only
-          </button>
-          <button
-            className={`mode-btn ${settings.targetGender === 'boys_only' ? 'active' : ''}`}
-            onClick={() => handleTargetGenderChange('boys_only')}
-          >
-            <Users size={14} />
-            Boys Only
-          </button>
-          <button
-            className={`mode-btn ${settings.targetGender === 'all' ? 'active' : ''}`}
-            onClick={() => handleTargetGenderChange('all')}
-          >
-            <Shield size={14} />
-            All (Off)
-          </button>
-        </div>
-      </div>
-
-      {/* Anti-Ban Skip Speed */}
-      <div className="card">
-        <div className="card-title">
-          <Sliders size={12} />
-          Anti-Ban Reaction Speed
-        </div>
-        <div className="slider-container">
-          <div className="slider-header">
-            <span style={{ color: '#94a3b8' }}>Human Delay</span>
-            <span style={{ fontWeight: 600, color: '#c4b5fd' }}>~{midDelay} ms</span>
-          </div>
-          <input
-            type="range"
-            min="200"
-            max="1200"
-            step="50"
-            value={midDelay}
-            onChange={handleDelayChange}
-            className="range-input"
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#64748b' }}>
-            <span>Turbo (200ms)</span>
-            <span>Balanced (500ms)</span>
-            <span>Stealth (1200ms)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time Session Stats */}
-      <div className="card">
-        <div className="card-title">
-          <CheckCircle2 size={12} />
-          Session Activity
-        </div>
-        <div className="stats-grid">
-          <div className="stat-item">
-            <span className="stat-value skipped">{stats.totalSkipped}</span>
-            <span className="stat-label">Skipped Males</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value matched">{stats.femalesMatched}</span>
-            <span className="stat-label">Girls Matched</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Preferences */}
-      <div className="card">
-        <div className="option-row">
-          <div className="option-info">
-            <Layout size={14} color="#94a3b8" />
-            <span>Floating in-video HUD</span>
-          </div>
-          <label className="switch" style={{ width: 36, height: 20 }}>
-            <input
-              type="checkbox"
-              checked={settings.showInPageHud}
-              onChange={handleToggleHud}
-            />
-            <span className="slider" style={{ borderRadius: 20 }}></span>
-          </label>
-        </div>
-
-        <div className="option-row">
-          <div className="option-info">
-            <Volume2 size={14} color="#94a3b8" />
-            <span>Sound chime on match</span>
-          </div>
-          <label className="switch" style={{ width: 36, height: 20 }}>
-            <input
-              type="checkbox"
-              checked={settings.soundAlertOnMatch}
-              onChange={handleToggleSound}
-            />
-            <span className="slider" style={{ borderRadius: 20 }}></span>
-          </label>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="footer">
-        <span>Shortcut: <strong>Alt + W</strong></span>
-        <button className="reset-btn" onClick={handleResetStats}>
-          <RefreshCw size={10} style={{ display: 'inline', marginRight: 4 }} />
-          Reset Stats
-        </button>
-      </div>
+    <div className={`live-status ${retryStates.includes(status.state) ? 'warning' : ''}`} role="status">
+      {retryStates.includes(status.state) ? <CircleAlert size={15} /> : <Activity size={15} />}
+      <span>{status.message}</span>{tabId !== null && retryStates.includes(status.state) &&
+        <button className="icon-button" title="Retry detection" aria-label="Retry detection" disabled={busy} onClick={retry}><RotateCcw size={15} /></button>}
     </div>
-  );
+    {error && <div className="error" role="alert"><span>{error}</span><button className="icon-button" title="Dismiss error" aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div>}
+
+    <section><h2 className="section-title"><Users size={14} />Match preference</h2>
+      <div className="segmented" role="group" aria-label="Match preference">{([
+        ['girls_only', 'Women', Heart], ['boys_only', 'Men', Users], ['all', 'Everyone', ShieldCheck],
+      ] as const).map(([value, label, Icon]) => <button key={value} aria-pressed={settings.targetGender === value}
+        disabled={busy} onClick={() => save({ targetGender: value as TargetGender })}><Icon size={15} />{label}</button>)}</div>
+    </section>
+
+    <section className="tuning"><h2 className="section-title"><SlidersHorizontal size={14} />Detection</h2>
+      <Range label="Skip delay" value={delay} min={300} max={2000} step={50} format={value => `${value} ms`} disabled={busy}
+        onSave={value => save({ skipDelayMinMs: value - 150, skipDelayMaxMs: value + 150 })} />
+      <Range label="Confidence threshold" value={Math.round(settings.minimumConfidence * 100)} min={70} max={99} step={1}
+        format={value => `${value}%`} disabled={busy} onSave={value => save({ minimumConfidence: value / 100 })} />
+      <div className="option"><label htmlFor="uncertain"><span>Skip uncertain matches</span></label>
+        <input id="uncertain" className="checkbox" type="checkbox" checked={settings.skipUnknown} disabled={busy}
+          onChange={event => save({ skipUnknown: event.target.checked })} /></div>
+      {settings.skipUnknown && <label className="option" htmlFor="timeout"><span>Wait before skipping</span><select id="timeout"
+        value={settings.unknownTimeoutMs} disabled={busy} onChange={event => save({ unknownTimeoutMs: Number(event.target.value) })}>
+        {Array.from(new Set([3000, 5000, 8000, 12000, 20000, 30000, settings.unknownTimeoutMs])).sort((a, b) => a - b)
+          .map(value => <option key={value} value={value}>{value / 1000} seconds</option>)}</select></label>}
+    </section>
+
+    <section><div className="section-heading"><h2 className="section-title"><Activity size={14} />Activity</h2>
+      <div className="reset">{confirmReset ? <><button className="text-button danger" disabled={busy} onClick={() => {
+        void run(async () => { setStats(await resetStats()); setConfirmReset(false); });
+      }}>Reset all</button><button className="icon-button" aria-label="Cancel reset" title="Cancel reset" onClick={() => setConfirmReset(false)}><X size={14} /></button></> :
+        <button className="icon-button" aria-label="Reset statistics" title="Reset statistics" onClick={() => setConfirmReset(true)}><RotateCcw size={14} /></button>}</div>
+      </div><div className="stats"><div><strong className="rose">{stats.totalSkipped.toLocaleString()}</strong><span>Skipped</span></div>
+        <div><strong className="green">{stats.totalKept.toLocaleString()}</strong><span>Kept</span></div>
+        <div><strong>{stats.unknownSkipped.toLocaleString()}</strong><span>Uncertain skips</span></div></div>
+    </section>
+
+    <section className="preferences"><div className="option"><span><Eye size={15} />In-page controls</span>
+      <Toggle label="In-page controls" checked={settings.showInPageHud} disabled={busy} onChange={() => save({ showInPageHud: !settings.showInPageHud })} /></div>
+      <div className="option"><span><Volume2 size={15} />Match sound</span><Toggle label="Match sound" checked={settings.soundAlertOnMatch}
+        disabled={busy} onChange={() => save({ soundAlertOnMatch: !settings.soundAlertOnMatch })} /></div></section>
+
+    <footer><span><Check size={13} />On-device only</span><a href="https://github.com/arnavsx3/wingman" target="_blank" rel="noreferrer" title="Wingman on GitHub">GitHub<ArrowUpRight size={13} /></a></footer>
+    <p className="estimate-note">Appearance estimates can be wrong. Uncertain matches {settings.skipUnknown ? 'are skipped after the wait' : 'stay connected'}.</p>
+  </main>;
 }

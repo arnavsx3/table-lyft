@@ -16,4 +16,4 @@ async function generate() {
   }
 }
 
-generate().catch(console.error);
+generate().catch(error => { console.error(error); process.exitCode = 1; });
