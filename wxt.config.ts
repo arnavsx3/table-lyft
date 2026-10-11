@@ -13,7 +13,25 @@ export default defineConfig({
       '*://ome.tv/*'
     ],
     action: {
-      default_title: 'Wingman Controller'
+      default_title: 'Wingman Controller',
+      default_icon: {
+        '16': 'icon-16.png',
+        '32': 'icon-32.png',
+        '48': 'icon-48.png',
+        '128': 'icon-128.png'
+      }
+    },
+    icons: {
+      '16': 'icon-16.png',
+      '32': 'icon-32.png',
+      '48': 'icon-48.png',
+      '128': 'icon-128.png'
+    },
+    browser_specific_settings: {
+      gecko: {
+        id: 'wingman-extension@arnavsx3.github.io',
+        strict_min_version: '109.0'
+      }
     }
   }
 });
