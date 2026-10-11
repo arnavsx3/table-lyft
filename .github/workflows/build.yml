@@ -42,10 +42,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wingman-chrome-mv3
-          path: .output/*-chrome.zip
+          path: dist/*-chrome.zip
 
       - name: Upload Firefox Extension Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wingman-firefox
-          path: .output/*-firefox.zip
+          path: dist/*-firefox.zip

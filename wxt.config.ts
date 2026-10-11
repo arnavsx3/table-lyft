@@ -2,6 +2,7 @@ import { defineConfig } from 'wxt';
 
 // https://wxt.dev/api/config.html
 export default defineConfig({
+  outDir: 'dist',
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'Wingman - OmeTV Smart Filter',
