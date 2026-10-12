@@ -60,7 +60,21 @@ The user reported broad skipping, including connections they described as girls,
 
 In 1.3.0, the connected counter required stable code `2` in an established, bound connection. Zero means that condition was not observed, not that zero girls connected. The skipped total counted transition-confirmed automatic code-1 requests, not verified men. Version 1.3.1 preserves those old totals but hides the gender interpretation and removes the numeric action path. The raw-code report is for further inspection only; it cannot by itself justify restoring automatic filtering.
 
-### Remaining Controlled Check
+### Follow-Up: All-One Report and Client Lifecycle
+
+The submitted `newCheck.json` from 1.3.1 completed with `checked = 20`, `withCandidate = 20` and `rootCodeTotals = { code1: 20, code2: 0, otherOrMissing: 0 }`. This establishes constant root code `1` at the first sample of those 20 objects, not their selected settings or 20 unique people. The user subsequently reported another all-one result; no new file was supplied for that report. Repeating the same diagnostic without a distinct hypothesis is not a useful next step.
+
+The public desktop bundle was fetched again on October 12 and matched the SHA-256 above. Inspection of its receive path and state reducers found:
+
+- The `BGD` handler passes its payload into the dialog-start path, which dispatches the `found` action with that payload. The `found` reducer assigns it to `rouletteState.interlocutor`.
+- The `connected`, `privat` and `reconnect` reducers change the lifecycle state without updating `interlocutor`. The inspected path provides no demonstrated later refresh of `interlocutor.Gender`; delaying the same read is not an established fix. This is static source evidence, not a live timing measurement or proof that other client paths cannot exist.
+- Incoming `UDD` handling parses dialog data for translation parameters. No partner-selected gender update was identified in that inspected handler.
+- `ticket.isFemale` is derived from the local login response's `AttachedData.MarkedAsFemale`, not from the partner payload. It must not be used as partner metadata. Its provenance is also not established as an explicit self-report.
+- The local selector and outgoing `Gender`/`ExtraUserData.Gender` remain separate from the unverified incoming field. They do not validate its meaning.
+
+No additional verified explicit partner-selection signal was established. This investigation changes no runtime behavior and does not justify re-enabling automatic gender filtering. Do not collect more random-connection reports as a substitute for a controlled provenance/mapping check, infer gender from media, or treat blank-screen handling as a solution to the missing gender signal.
+
+### Controlled Mapping Check
 
 1. Use only a consenting test partner who can independently confirm the setting they selected. Appearance and voice are not evidence of that selection. Wingman cannot arrange a specific pairing; do not assume a random connection is the test partner.
 2. For each confirmed test connection, start a fresh diagnostic run and download its report immediately after that sample, before another connection. An active connection may be sampled immediately. Keep each run to one checked object where possible so the retained field list is unambiguous.
