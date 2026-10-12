@@ -21,6 +21,7 @@ export type PendingCapture = z.infer<typeof pendingSchema>;
 
 export class CaptureRepository {
   private claimed = new Map<string, number>();
+  private saving: Promise<void> = Promise.resolve();
   constructor(
     private area: SessionArea,
     private now: () => number = Date.now,
@@ -61,7 +62,14 @@ export class CaptureRepository {
     return parsed.success && parsed.data.id === id ? parsed.data : null;
   }
 
-  async save(capture: Capture) {
+  save(capture: Capture): Promise<void> {
+    // A single worker may receive captures from several tabs at once.
+    const next = this.saving.then(() => this.saveRecord(capture));
+    this.saving = next.catch(() => {});
+    return next;
+  }
+
+  private async saveRecord(capture: Capture) {
     await this.prune();
     const safe = captureSchema.parse(capture);
     const all = await this.area.get(null);

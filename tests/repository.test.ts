@@ -115,8 +115,21 @@ describe('temporary capture repository', () => {
   });
   it('limits concurrent capture count but permits updating an existing record', async () => {
     const repo = new CaptureRepository(new MemoryArea(), () => now);
-    for (let i = 0; i < 5; i++) await repo.save({ ...capture, id: crypto.randomUUID() });
-    await expect(repo.save(capture)).rejects.toThrow(/Close/);
+    await repo.save(capture);
+    for (let i = 0; i < 4; i++) await repo.save({ ...capture, id: crypto.randomUUID() });
+    await expect(repo.save({ ...capture, id: crypto.randomUUID() })).rejects.toThrow(/Close/);
+    await repo.save({ ...capture, editorTabId: 99 });
+    expect((await repo.load(capture.id))?.editorTabId).toBe(99);
+  });
+  it('keeps the capture limit under simultaneous submissions and recovers after rejection', async () => {
+    const area = new MemoryArea();
+    const repo = new CaptureRepository(area, () => now);
+    const values = Array.from({ length: 6 }, () => ({ ...capture, id: crypto.randomUUID() }));
+    const replies = await Promise.allSettled(values.map((value) => repo.save(value)));
+    expect(replies.filter((reply) => reply.status === 'fulfilled')).toHaveLength(5);
+    expect(Object.keys(area.data)).toHaveLength(5);
+    await repo.remove(values[0]!.id);
+    await expect(repo.save(values[5]!)).resolves.toBeUndefined();
   });
   it('rejects unknown message commands and unbounded table payloads', () => {
     expect(messageSchema.safeParse({ type: 'upload', url: 'https://example.com' }).success).toBe(

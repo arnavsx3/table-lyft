@@ -6,6 +6,8 @@ A local-first browser extension for turning loaded web tables into clean, reusab
 
 TableLyft is a fresh project. The earlier Wingman project remains only in Git history; no OmeTV code, models, or permissions are reused.
 
+![TableLyft workspace with the built-in sample dataset](docs/screenshots/workspace.png)
+
 ## Scope
 
 - On-click table picker for ordinary HTML tables in the current page's main frame.
@@ -23,7 +25,9 @@ Use Node.js 24 LTS and npm. The lockfile is the dependency source of truth.
 npm ci
 npm run check
 npm run build
+npx playwright install chromium
 npm run test:e2e
+npm run verify:bundle
 npm run zip
 ```
 
@@ -36,6 +40,10 @@ Chromium is the initial supported target. Brave installation is supported by its
 WXT builds a Manifest V3 extension. React and TypeScript power the popup, picker, and workspace. Browser DOM APIs read tables; Papa Parse serializes CSV/TSV; Zod validates messages and captures. Vitest tests the data pipeline; Playwright exercises an installed extension.
 
 See [Architecture](docs/ARCHITECTURE.md), [Workflow](docs/WORKFLOW.md), [Development](docs/DEVELOPMENT.md), [Testing](docs/TESTING.md), [Roadmap](docs/ROADMAP.md), and [Privacy](PRIVACY.md).
+
+## Status
+
+Version 0.1.0 includes 46 unit tests and six installed-extension browser scenarios. Local checks cover extraction, safe exports, actual CSV/clipboard contents, picker errors, pagination, cleanup, and layouts from 320 to 1440 pixels. CI repeats these checks and packages the extension. Native Brave toolbar access and Excel/Sheets imports still need manual verification; see the [release checklist](docs/TESTING.md).
 
 ## Data And Permissions
 

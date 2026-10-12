@@ -35,7 +35,10 @@ export default defineBackground(() => {
       const editor = await browser.tabs.create({
         url: browser.runtime.getURL(`/editor.html?id=${capture.id}`),
       });
-      if (editor.id !== undefined) await repository.save({ ...capture, editorTabId: editor.id });
+      if (editor.id === undefined) throw new Error('Workspace tab unavailable');
+      await repository.save({ ...capture, editorTabId: editor.id });
+      // If the user closed the tab while storage was updating, do not leave an orphan.
+      await browser.tabs.get(editor.id);
       return { ok: true, id: capture.id };
     } catch (error) {
       await repository.remove(capture.id);

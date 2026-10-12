@@ -59,7 +59,9 @@ The core has no Chrome API dependencies. The extension layer has no UI rendering
 
 An extracted table contains a label, rectangular string rows, and a suggested number of header rows. A stored capture adds a random ID, creation time, sanitized page title/URL, source tab ID when available, and editor tab ID. No page HTML, scripts, cookies, form values, or browsing history are stored.
 
-Limits: 2,000 source rows, 100 columns, 50,000 expanded cells, and 1,000,000 total UTF-16 text units. Oversized tables fail explicitly rather than silently truncating. Merged cells expand their text across the covered logical cells; header labels flatten consecutive duplicate labels. Hidden rows/cells and nested tables are excluded from the selected table's text. Form controls are not read.
+Limits: 2,000 source rows, 100 columns, 50,000 expanded cells, 20,000 UTF-16 units per cell, and 1,000,000 total UTF-16 text units. Oversized tables fail explicitly rather than silently truncating. Merged cells expand their text across the covered logical cells; header labels flatten consecutive duplicate labels. Up to ten leading heading rows are suggested. The picker lists up to 100 eligible tables from the first 1,000 table elements. Hidden rows/cells and nested tables are excluded from the selected table's text. Form controls and editable text regions are not read.
+
+At most five stored captures are accepted; browser storage quota can reject a capture earlier. Close or discard unused workspaces to release space. The workspace does not silently evict another capture.
 
 Only temporary browser-session storage holds captures. Worker suspension is safe. Closing the associated editor removes its stored capture. Remaining captures and pending requests are pruned on subsequent access; expired records are not accepted. Capture retention is 30 minutes; pending selection requests expire after 10 minutes. This is lazy cleanup, not a guarantee of deletion at the exact expiry instant. An already-loaded workspace can retain its in-memory snapshot until closed or discarded. Browser restart/extension reload clears session storage.
 

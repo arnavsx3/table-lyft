@@ -232,6 +232,7 @@ test('sample, clipboard, responsive workspace and discard', async ({ extension }
     .toContain('Product\tCategory\tWeight');
   await extension.context.clearPermissions();
   await editor.bringToFront();
+  await expect(editor.getByRole('status')).toHaveCount(0);
   for (const width of [1440, 1280, 768, 390, 320]) {
     await editor.setViewportSize({ width, height: 900 });
     expect(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

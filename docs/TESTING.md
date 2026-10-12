@@ -19,4 +19,23 @@ Manual release checks still include loading the production build in Brave, using
 
 ## Release Verification
 
-Implementation in progress. Test counts, screenshots, and manual compatibility observations will be recorded after execution.
+Verified locally on 2026-10-12 with Node 24 and Playwright Chromium:
+
+- Biome and strict TypeScript checks pass.
+- 46 Vitest tests pass across extraction, transformations, serialization, schemas, and session storage, including simultaneous capture submissions.
+- Six installed-extension scenarios pass: complete capture/export, pagination, picker failure/cancellation, sample/clipboard/layout/discard, direct selection/plain-text rendering/zero columns, and closed/expired capture cleanup.
+- CSV downloads are read back and parsed to compare actual output with expected values, including BOM, formula protection, selected columns, and filtered rows. A 230-row capture exports all rows, not just the 100-row preview page.
+- Clipboard contents are read from the loopback fixture after actual copy commands. Clipboard read permission is granted only to the fixture origin for this test, never added to the extension manifest.
+- Screenshots were inspected at 1440, 1280, 768, 390, and 320 pixels, plus the 384-pixel popup and picker. Workspace viewport overflow assertions pass. Screenshot captures use only the built-in synthetic sample.
+- Production bundle verification passes: four expected permissions, no host grants/automatic content scripts/external messaging, strict CSP, required packaged files, and no matched remote executable references or dynamic code evaluation. This is a bounded static check, not a comprehensive security audit.
+
+The checked-in [workspace screenshot](screenshots/workspace.png) shows the local sample, not a live website compatibility claim. Browser-test screenshots and reports are generated under ignored `test-results/` and `playwright-report/` directories.
+
+### Manual Checks Still Pending
+
+- Load the production folder in Brave. On an ordinary page, invoke the actual toolbar icon and select a table; verify the native `activeTab` grant. The automation harness substitutes a loopback-only grant for this gesture.
+- Try representative public HTML tables and a page you normally use. Check hidden rows and merged headings against the source; report the URL and failure without including private captured data.
+- Import downloaded CSV into Excel/Sheets, especially Unicode, leading zeros, multiline cells, and formula-looking text. Spreadsheet auto-formatting is outside TableLyft's control.
+- Confirm behavior after a full browser restart and extension reload in Brave. Storage TTL/close/reload behavior is covered in unit/Chromium tests, not a manual Brave restart test.
+
+Not claimed: Firefox compatibility, arbitrary website support, native browser-menu automation, or store publication.

@@ -125,7 +125,9 @@ function Picker({ host, token, close }: { host: HTMLElement; token: string; clos
         <header>
           <Table2 size={21} />
           <strong>TableLyft</strong>
-          <span>{tables.length} tables</span>
+          <span>
+            {tables.length} {tables.length === 1 ? 'table' : 'tables'}
+          </span>
           <button
             type="button"
             disabled={busy}
