@@ -15,6 +15,26 @@ function setup(enabled = true) {
 describe('manual session assistant', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('counts automatic skips only on a transition and does not also count them as manual', () => {
+    const recordAutoSkip = vi.fn(async () => {}), recordSkip = vi.fn(async () => {});
+    const assistant = new SessionAssistant(true, { clickNext: () => true, recordAutoSkip, recordSkip,
+      recordSession: async () => {}, onStatus: () => {} });
+    assistant.setSession({ id: 1, video: document.createElement('video'), fingerprint: 'one' });
+    assistant.next(true); expect(recordAutoSkip).not.toHaveBeenCalled();
+    assistant.confirmAutomaticTransition(); assistant.setSession(null);
+    expect(recordAutoSkip).toHaveBeenCalledTimes(1); expect(recordSkip).not.toHaveBeenCalled();
+    assistant.destroy();
+  });
+
+  it('cancels pending automatic accounting when automatic mode is switched off', () => {
+    const recordAutoSkip = vi.fn(async () => {});
+    const assistant = new SessionAssistant(true, { clickNext: () => true, recordAutoSkip, recordSkip: async () => {},
+      recordSession: async () => {}, onStatus: () => {} });
+    assistant.setSession({ id: 1, video: document.createElement('video'), fingerprint: 'one' });
+    assistant.next(true); assistant.cancelAutomatic(); assistant.setSession(null);
+    expect(recordAutoSkip).not.toHaveBeenCalled(); assistant.destroy();
+  });
+
   it('counts each connection once across updates and pause/resume', () => {
     const test = setup();
     test.assistant.setSession(test.session(1));

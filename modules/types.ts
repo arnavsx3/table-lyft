@@ -5,6 +5,7 @@ export type GenderType = 'male' | 'female' | 'unknown';
 
 export interface WingmanSettings {
   enabled: boolean;
+  experimentalAutoSkip: boolean;
   targetGender: TargetGender;
   skipDelayMinMs: number;
   skipDelayMaxMs: number;
@@ -23,6 +24,8 @@ export interface WingmanStats {
   femalesMatched: number;
   unknownSkipped: number;
   sessionStartedAt: number;
+  girlsConnected: number;
+  maleCoupleSkipped: number;
 }
 
 export interface PartnerDetectedEvent {

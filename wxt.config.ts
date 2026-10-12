@@ -15,7 +15,7 @@ export default defineConfig({
   zip: { excludeSources: ['test-results/**', 'playwright-report/**'] },
   manifest: {
     name: 'Wingman - OmeTV Session Controls',
-    description: 'Manual OmeTV session controls with live connection tracking and persistent counters.',
+    description: 'OmeTV session controls and an opt-in experimental partner-metadata auto-skip prototype. No media classification.',
     permissions: ['storage'],
     host_permissions: SITE_MATCHES,
     action: {

@@ -9,13 +9,13 @@ for (const browser of ['chrome', 'firefox']) {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.version, pkg.version);
   assert.deepEqual(manifest.permissions, ['storage']);
-  assert.equal(manifest.content_scripts.length, 2, 'Isolated controls and a dormant page-world diagnostic bridge');
+  assert.equal(manifest.content_scripts.length, 2, 'Isolated controls and an on-demand page-world metadata bridge');
   assert.equal(manifest.content_scripts.filter(script => !script.world || script.world === 'ISOLATED').length, 1);
   const bridge = manifest.content_scripts.find(script => script.world === 'MAIN');
   assert.ok(bridge && bridge.matches.every(host => /ome\.tv/.test(host)), 'Partner diagnostic bridge is OmeTV-only');
   assert.ok(manifest.host_permissions.every(host => /ome\.tv|minichat\.com/.test(host)));
   if (browser === 'firefox') assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions.required, ['none']);
-  assert.ok(!(await readdir(root)).includes('models'), 'Manual-control builds must not ship model weights');
+  assert.ok(!(await readdir(root)).includes('models'), 'Metadata-only builds must not ship model weights');
   const scripts = [...manifest.content_scripts.flatMap(script => script.js),
     ...(manifest.background.scripts ?? [manifest.background.service_worker])];
   for (const file of [...scripts, manifest.action.default_popup, 'THIRD_PARTY_NOTICES.txt']) assert.ok((await stat(path.join(root, file))).size > 0);

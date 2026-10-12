@@ -4,6 +4,20 @@ export interface PartnerSession {
   fingerprint: string;
 }
 
+export function remoteVideoSnapshot(document: Document) {
+  const wrapper = document.querySelector('#remote-video-wrapper');
+  const video = document.querySelector<HTMLVideoElement>('#remote-video');
+  if (!wrapper || !video || wrapper.matches('.s-stop, .s-search')) return null;
+  const stream = video.srcObject;
+  const media = stream && 'getVideoTracks' in stream ? stream as MediaStream : null;
+  const tracks = media?.getVideoTracks() ?? [];
+  if (media && (!media.active || tracks.length === 0 || tracks.every(track => track.readyState === 'ended'))) return null;
+  const playing = !video.paused && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+  if (!wrapper.classList.contains('s-play') && !(media && playing)) return null;
+  if (!media && !(playing && (video.currentSrc || video.src))) return null;
+  return { video, fingerprint: media ? `${media.id}:${tracks.map(track => track.id).join(',')}` : video.currentSrc || video.src };
+}
+
 export class PartnerSessionTracker {
   public current: PartnerSession | null = null;
   private counter = 0;
@@ -14,17 +28,7 @@ export class PartnerSessionTracker {
   constructor(private onChange: (session: PartnerSession | null) => void) {}
 
   private snapshot() {
-    const wrapper = document.querySelector('#remote-video-wrapper');
-    const video = document.querySelector<HTMLVideoElement>('#remote-video');
-    if (!wrapper || !video || wrapper.matches('.s-stop, .s-search')) return null;
-    const stream = video.srcObject;
-    const media = stream && 'getVideoTracks' in stream ? stream as MediaStream : null;
-    const tracks = media?.getVideoTracks() ?? [];
-    if (media && (!media.active || tracks.length === 0 || tracks.every(track => track.readyState === 'ended'))) return null;
-    const playing = !video.paused && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
-    if (!wrapper.classList.contains('s-play') && !(media && playing)) return null;
-    if (!media && !(playing && (video.currentSrc || video.src))) return null;
-    return { video, fingerprint: media ? `${media.id}:${tracks.map(track => track.id).join(',')}` : video.currentSrc || video.src };
+    return remoteVideoSnapshot(document);
   }
 
   public start() {

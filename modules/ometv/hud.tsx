@@ -19,6 +19,7 @@ const css = `
   button:focus-visible { outline: 2px solid #82d6bc; outline-offset: 2px; }
   .status { color: #82d6bc; margin: 10px 0 14px; font-size: 13px; min-height: 19px; overflow-wrap: anywhere; }
   .status.warning { color: #f1c880; }
+  .experimental { color: #f1c880; font-size: 11px; margin: 0 0 12px; overflow-wrap: anywhere; }
   .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid #44454e; padding-top: 12px; }
   .metric { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
   .metric strong, .metric time { color: #f3f3f5; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; display: block; height: 35px; white-space: nowrap; }
@@ -97,9 +98,10 @@ export class WingmanInPageHud {
         onClick={this.onToggle}>{settings.enabled ? <Pause size={17} /> : <Play size={17} />}</button>
       <button title="Hide controls" aria-label="Hide controls" onClick={this.onHide}><X size={17} /></button></div></div>
       <p className={`status ${warning ? 'warning' : ''}`} role="status">{this.status.message}</p>
+      <p className="experimental">Experimental counters: 2 = female; 1 = male/couple. Partner mapping unverified.{!settings.experimentalAutoSkip && ' Auto-skip off.'}</p>
       <PartnerDataCheck report={this.status.diagnostic} onStart={this.onCheck} onStop={this.onStopCheck} onDownload={this.onDownload} />
-      <div className="metrics"><div className="metric" aria-label="Sessions"><strong title={stats.totalSessions.toLocaleString()}>{formatCount(stats.totalSessions)}</strong><span>Sessions</span></div>
-        <div className="metric skips" aria-label="Skipped"><strong title={stats.totalSkipped.toLocaleString()}>{formatCount(stats.totalSkipped)}</strong><span>Skipped</span></div>
+      <div className="metrics"><div className="metric" aria-label="Girls connected"><strong title={stats.girlsConnected.toLocaleString()}>{formatCount(stats.girlsConnected)}</strong><span>Girls connected</span></div>
+        <div className="metric skips" aria-label="Male/couple skipped"><strong title={stats.maleCoupleSkipped.toLocaleString()}>{formatCount(stats.maleCoupleSkipped)}</strong><span>Male/couple skipped</span></div>
         <div className="metric"><ChatClock startedAt={this.status.connectedAt} /><span>Chat time</span></div></div>
       <button className="next" title="Next connection" aria-label="Next connection" disabled={!settings.enabled || !this.status.canSkip} onClick={this.onNext}>
         <SkipForward size={18} />Next</button></aside>);

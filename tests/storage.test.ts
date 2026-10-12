@@ -11,6 +11,13 @@ function memoryStorage() {
 }
 
 describe('background storage queue', () => {
+  it('starts experimental counters fresh without relabeling historical classifications or manual skips', async () => {
+    const storage = memoryStorage(); storage.data[STATS_KEY] = { femalesMatched: 9, malesSkipped: 20, totalSkipped: 30 };
+    const mutate = createStorageService(storage);
+    await Promise.all([mutate({ type: 'prototypeGirl' }), mutate({ type: 'prototypeSkip' }), mutate({ type: 'manualSkip' })]);
+    expect(storage.data[STATS_KEY]).toMatchObject({ girlsConnected: 1, maleCoupleSkipped: 1, totalSkipped: 32, femalesMatched: 9, malesSkipped: 20 });
+    await mutate({ type: 'reset' }); expect(storage.data[STATS_KEY]).toMatchObject({ girlsConnected: 0, maleCoupleSkipped: 0 });
+  });
   it('migrates old counters and serializes manual sessions/skips without assigning a gender', async () => {
     const storage = memoryStorage();
     storage.data[STATS_KEY] = { totalSkipped: 4, totalKept: 2, malesSkipped: 3 };

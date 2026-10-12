@@ -2,6 +2,7 @@ import type { WingmanSettings, WingmanStats } from './types';
 
 export const DEFAULT_SETTINGS: WingmanSettings = {
   enabled: true,
+  experimentalAutoSkip: false,
   targetGender: 'girls_only',
   skipDelayMinMs: 300,
   skipDelayMaxMs: 650,
@@ -28,6 +29,7 @@ export function normalizeSettings(value: unknown): WingmanSettings {
   const min = Math.round(number(input.skipDelayMinMs, defaults.skipDelayMinMs, 150, 5000));
   return {
     enabled: typeof input.enabled === 'boolean' ? input.enabled : defaults.enabled,
+    experimentalAutoSkip: input.experimentalAutoSkip === true,
     targetGender: ['girls_only', 'boys_only', 'all'].includes(String(input.targetGender))
       ? input.targetGender as WingmanSettings['targetGender'] : defaults.targetGender,
     skipDelayMinMs: min,
@@ -41,7 +43,8 @@ export function normalizeSettings(value: unknown): WingmanSettings {
 }
 
 export function freshStats(now = Date.now()): WingmanStats {
-  return { totalSessions: 0, totalSkipped: 0, totalKept: 0, malesSkipped: 0, femalesMatched: 0, unknownSkipped: 0, sessionStartedAt: now };
+  return { totalSessions: 0, totalSkipped: 0, totalKept: 0, malesSkipped: 0, femalesMatched: 0, unknownSkipped: 0,
+    girlsConnected: 0, maleCoupleSkipped: 0, sessionStartedAt: now };
 }
 
 export function normalizeStats(value: unknown): WingmanStats {

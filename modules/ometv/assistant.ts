@@ -5,6 +5,7 @@ interface AssistantDependencies {
   clickNext: () => boolean;
   recordSession: () => Promise<unknown>;
   recordSkip: () => Promise<unknown>;
+  recordAutoSkip?: () => Promise<unknown>;
   onStatus: (status: RuntimeStatus) => void;
   onConnection?: () => void;
 }
@@ -13,7 +14,7 @@ export class SessionAssistant {
   private session: PartnerSession | null = null;
   private connectedAt: number | undefined;
   private countedSession: number | null = null;
-  private pending: { sessionId: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  private pending: { sessionId: number; automatic: boolean; timer: ReturnType<typeof setTimeout> } | null = null;
   private destroyed = false;
 
   constructor(private enabled: boolean, private deps: AssistantDependencies) {}
@@ -25,8 +26,9 @@ export class SessionAssistant {
     this.session = session;
     this.connectedAt = session ? Date.now() : undefined;
     if (previous && this.pending?.sessionId === previous.id) {
+      const automatic = this.pending.automatic;
       this.cancelPending();
-      this.persist(this.deps.recordSkip());
+      this.persist(automatic && this.deps.recordAutoSkip ? this.deps.recordAutoSkip() : this.deps.recordSkip());
     }
     this.countConnection();
     this.publish();
@@ -48,9 +50,9 @@ export class SessionAssistant {
   }
 
   // A click is an intent, not a skip. Count it only after the connection changes.
-  public observeNext(): boolean {
+  public observeNext(automatic = false): boolean {
     if (this.destroyed || !this.enabled || !this.session || this.pending) return false;
-    this.pending = { sessionId: this.session.id, timer: setTimeout(() => {
+    this.pending = { sessionId: this.session.id, automatic, timer: setTimeout(() => {
       this.pending = null;
       this.publish('Next did not change the connection. Try again.');
     }, 3000) };
@@ -58,17 +60,27 @@ export class SessionAssistant {
     return true;
   }
 
-  public next() {
-    if (!this.observeNext()) return;
+  public next(automatic = false): boolean {
+    if (!this.observeNext(automatic)) return false;
     try {
-      if (this.deps.clickNext()) return;
+      if (this.deps.clickNext()) return true;
       this.cancelPending();
       this.publish('Next control unavailable');
     } catch {
       this.cancelPending();
       this.publish('Could not request the next connection');
     }
+    return false;
   }
+
+  public confirmAutomaticTransition() {
+    if (this.destroyed || !this.pending?.automatic) return;
+    this.cancelPending();
+    if (this.deps.recordAutoSkip) this.persist(this.deps.recordAutoSkip());
+    this.publish();
+  }
+
+  public cancelAutomatic() { if (this.pending?.automatic) { this.cancelPending(); this.publish(); } }
 
   public stop() { this.cancelPending(); this.publish(); }
   public retry() { if (!this.destroyed) this.publish(); }

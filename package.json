@@ -1,7 +1,7 @@
 {
   "name": "wingman",
-  "version": "1.2.1",
-  "description": "Cross-browser manual session controls and persistent counters for OmeTV",
+  "version": "1.3.0",
+  "description": "OmeTV session controls and an experimental metadata-only auto-skip prototype",
   "private": true,
   "type": "module",
   "scripts": {
