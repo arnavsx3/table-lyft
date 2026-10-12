@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.1 - 2026-10-12
+
+### Added
+
+- Opt-in OmeTV partner-state diagnostic check in the HUD and settings panel, with explicit unavailable, waiting, no-field-seen, and unverified-candidate results.
+- Read-only React/Redux subscription restricted to the partner object and `DialogData`; no traffic interception, media access, automatic skipping, or counter mutations.
+- Bounded field/value allowlists, same-window/origin/request message validation, a 20-sample/five-minute cap, cleanup, and sanitized local report downloads.
+- Unit and installed-extension tests for privacy, opt-in behavior, lifecycle, report exports, unchanged counters, unavailable state, and responsive diagnostic layouts.
+
+### Changed
+
+- Require Firefox 128+ for the page-world bridge. Existing manual controls and counters remain unchanged; gender filtering is not implemented.
+
 ## 1.2.0 - 2026-10-12
 
 ### Changed

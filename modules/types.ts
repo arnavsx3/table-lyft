@@ -1,3 +1,5 @@
+import type { DiagnosticReport } from './ometv/diagnostic-report';
+
 export type TargetGender = 'girls_only' | 'boys_only' | 'all';
 export type GenderType = 'male' | 'female' | 'unknown';
 
@@ -38,4 +40,5 @@ export interface RuntimeStatus {
   message: string;
   connectedAt?: number;
   canSkip?: boolean;
+  diagnostic?: DiagnosticReport;
 }

@@ -1,6 +1,6 @@
 # Wingman Privacy
 
-Version 1.2.0, October 12, 2026.
+Version 1.2.1, October 12, 2026.
 
 ## Page Access
 
@@ -9,6 +9,14 @@ Wingman observes the supported page's remote-video element, stream/track identif
 This release does not read video pixels, run appearance or gender classification, save screenshots, record media, or identify people. Video models and inference code are excluded from browser bundles. Legacy sources remain in the repository but are not part of the active runtime.
 
 Wingman does not upload media, chat messages, identities, or browsing history. It does not intercept WebSocket, WebRTC, or fetch traffic. The website remains responsible for its own camera, microphone, network, and data processing.
+
+## Optional Partner Data Check
+
+The OmeTV-only page-world bridge is dormant until the check is started. The check locates the React/Redux provider under `#app` with a bounded traversal and subscribes read-only to `rouletteState.interlocutor`. It checks only own properties named `Gender`, `gender`, `Sex`, and `sex` in that partner object and its `DialogData` object. It does not inspect `ownGender` or scan chat text, user profiles, other globals, network traffic, or media. No site functions or network APIs are replaced.
+
+Reports contain sample totals, fixed allowlisted field paths, and only recognized short gender-label strings, integers 0 through 3, or booleans. Other values are withheld. The last candidate-bearing sample replaces the previous candidate list; there is no per-person report history. The page bridge sends only this reduced report to the isolated extension, which validates and rebuilds it before display or export. Page-controlled data is not authenticated and never triggers skip actions, counter writes, or privileged operations.
+
+Checking stops after 20 distinct partner-object samples, five minutes, a user stop, or leaving the page. Root traversal and malformed data failures produce an unavailable result, not a gender conclusion. Reports live only in the current tab's memory and reset on reload. Clicking Download saves the reduced report locally; nothing is automatically uploaded or written to extension storage. A downloaded report remains on disk until the user deletes it.
 
 ## Local Storage
 

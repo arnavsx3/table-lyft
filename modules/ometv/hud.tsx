@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Pause, Play, RotateCcw, SkipForward, X } from 'lucide-react';
 import type { RuntimeStatus, WingmanSettings, WingmanStats } from '../types';
+import { PartnerDataCheck, diagnosticStyles } from './diagnostic-view';
 
 const css = `
   :host { all: initial; position: fixed; top: 16px; right: 16px; z-index: 2147483647; width: min(420px, calc(100vw - 32px)); color-scheme: dark; }
@@ -25,6 +26,7 @@ const css = `
   .metric.skips strong { color: #ff92ae; }
   .next { width: 100%; height: 40px; margin-top: 16px; color: white; background: #168769; font-weight: 600; }
   .next:hover:not(:disabled) { background: #1a9b79; }
+  ${diagnosticStyles}
 `;
 
 export function formatDuration(milliseconds: number) {
@@ -59,9 +61,14 @@ export class WingmanInPageHud {
   private onNext = () => {};
   private onRetry = () => {};
   private onHide = () => {};
+  private onCheck = () => {};
+  private onStopCheck = () => {};
+  private onDownload = () => {};
 
-  public init(onToggle: () => void, onNext: () => void, onRetry: () => void, onHide: () => void) {
+  public init(onToggle: () => void, onNext: () => void, onRetry: () => void, onHide: () => void,
+    onCheck = () => {}, onStopCheck = () => {}, onDownload = () => {}) {
     this.onToggle = onToggle; this.onNext = onNext; this.onRetry = onRetry; this.onHide = onHide;
+    this.onCheck = onCheck; this.onStopCheck = onStopCheck; this.onDownload = onDownload;
     this.host = document.createElement('div');
     this.host.id = 'wingman-hud-root';
     const shadow = this.host.attachShadow({ mode: 'open' });
@@ -90,6 +97,7 @@ export class WingmanInPageHud {
         onClick={this.onToggle}>{settings.enabled ? <Pause size={17} /> : <Play size={17} />}</button>
       <button title="Hide controls" aria-label="Hide controls" onClick={this.onHide}><X size={17} /></button></div></div>
       <p className={`status ${warning ? 'warning' : ''}`} role="status">{this.status.message}</p>
+      <PartnerDataCheck report={this.status.diagnostic} onStart={this.onCheck} onStop={this.onStopCheck} onDownload={this.onDownload} />
       <div className="metrics"><div className="metric" aria-label="Sessions"><strong title={stats.totalSessions.toLocaleString()}>{formatCount(stats.totalSessions)}</strong><span>Sessions</span></div>
         <div className="metric skips" aria-label="Skipped"><strong title={stats.totalSkipped.toLocaleString()}>{formatCount(stats.totalSkipped)}</strong><span>Skipped</span></div>
         <div className="metric"><ChatClock startedAt={this.status.connectedAt} /><span>Chat time</span></div></div>

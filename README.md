@@ -4,9 +4,11 @@
 
 Manual session controls for OmeTV and MiniChat, with persistent connection/skip counters and an isolated in-page HUD.
 
-## Version 1.2
+## Version 1.2.1
 
 The active runtime now uses manual controls. It does not inspect video pixels, infer gender, or automatically filter people. Filtering on explicit self-reported partner information is not implemented; no suitable field is currently integrated.
+
+Version 1.2.1 adds an opt-in **Partner data check** for OmeTV. It checks a narrow allowlist of fields in partner connection state, not your own selector. Results are diagnostic candidates, not verified self-reported gender. It does not enable automatic skipping or change counters. See [Partner Data Check](docs/PARTNER_DATA_CHECK.md).
 
 - Sessions counts observed remote connections once while tracking is enabled.
 - Skipped counts a manual Next intent followed by an observable disconnect or stream replacement within three seconds.
@@ -36,9 +38,9 @@ For Brave, Chrome, Edge, or compatible Chromium browsers:
 3. Select `dist/chrome-mv3`.
 4. Refresh OmeTV or MiniChat.
 
-After an update, reload Wingman's extension card and refresh the site. Check that the settings panel shows version 1.2.0.
+After an update, reload Wingman's extension card and refresh the site. Check that the settings panel shows version 1.2.1.
 
-For Firefox, run `npm run build:firefox`. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `dist/firefox-mv3/manifest.json`. Allow access to supported sites when asked. Temporary installs end when Firefox restarts; regular distribution requires Mozilla signing. Both targets use Manifest V3.
+For Firefox 128 or newer, run `npm run build:firefox`. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `dist/firefox-mv3/manifest.json`. Allow access to supported sites when asked. Temporary installs end when Firefox restarts; regular distribution requires Mozilla signing. Both targets use Manifest V3. The diagnostic bridge requires page-world content script support (Chromium 111+, Firefox 128+).
 
 [GitHub Actions](https://github.com/arnavsx3/wingman/actions/workflows/build.yml) provides development ZIPs. Extract the Chrome ZIP before loading its folder unpacked.
 
@@ -67,7 +69,7 @@ npm run zip
 npm run zip:firefox
 ```
 
-Builds are in `dist/`. Installed-extension tests use intercepted fixture pages and synthetic streams, not cameras or strangers. They cover connection counts, manual Next paths, failure, Stop, pause, persistence, cross-context storage, resets, native settings-window dimensions, and responsive HUD screenshots. Diagnostics are in `test-results/`.
+Builds are in `dist/`. Installed-extension tests use intercepted fixture pages and synthetic streams, not cameras or strangers. They cover connection counts, manual Next paths, failure, Stop, pause, persistence, cross-context storage, resets, native settings-window dimensions, responsive HUD screenshots, and opt-in metadata diagnostics. Test artifacts are in `test-results/`.
 
 ## Architecture
 
@@ -75,6 +77,9 @@ Builds are in `dist/`. Installed-extension tests use intercepted fixture pages a
 | --- | --- |
 | `entrypoints/background.ts` | Serialized storage mutations and tracking badge |
 | `entrypoints/content.ts` | Lifecycle, subscriptions, manual controls, and shortcuts |
+| `entrypoints/partner-check.content.ts` | Dormant OmeTV-only page-world diagnostic bridge |
+| `modules/ometv/metadata-probe.ts` | Bounded, read-only partner-state subscription |
+| `modules/ometv/diagnostic-report.ts` | Field allowlist, redaction, message validation, and export |
 | `modules/ometv/session.ts` | Remote stream/track and playback identity |
 | `modules/ometv/assistant.ts` | Session counts and confirmed manual-skip accounting |
 | `modules/ometv/skipper.ts` | Validated site controls and optional audio |
@@ -88,6 +93,7 @@ Builds are in `dist/`. Installed-extension tests use intercepted fixture pages a
 - Next unavailable means the control is hidden, disabled, or changed. Wingman does not click Start as Next.
 - Background pages may receive delayed browser events. Counters use observable transitions, not network interception.
 - Real matchmaking, MiniChat layout compatibility, and Firefox runtime behavior still require manual verification.
+- Diagnostics depend on an observable React/Redux partner store. An unavailable observer or absent allowlisted fields is not proof that OmeTV never exposes gender. Candidate fields and numeric mappings require independent verification before any filtering integration.
 
 ## Privacy and License
 

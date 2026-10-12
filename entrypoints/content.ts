@@ -4,6 +4,8 @@ import { OmeSkipper, findNextButton } from '@/modules/ometv/skipper';
 import { WingmanInPageHud } from '@/modules/ometv/hud';
 import { PartnerSessionTracker } from '@/modules/ometv/session';
 import { SessionAssistant } from '@/modules/ometv/assistant';
+import { PartnerDiagnosticClient } from '@/modules/ometv/diagnostic-client';
+import { downloadDiagnostic, idleDiagnostic } from '@/modules/ometv/diagnostic-report';
 import { SITE_MATCHES, STOP_SELECTORS } from '@/modules/ometv/constants';
 import type { RuntimeStatus } from '@/modules/types';
 
@@ -18,8 +20,10 @@ export default defineContentScript({
     let settingsRevision = 0;
     let statsRevision = 0;
     let status: RuntimeStatus = { state: 'waiting', message: 'Waiting for next connection', canSkip: false };
+    let diagnostic = idleDiagnostic();
     const hud = new WingmanInPageHud();
-    const setStatus = (next: RuntimeStatus) => { status = next; hud.setStatus(next); };
+    const setStatus = (next: RuntimeStatus) => { status = { ...next, diagnostic }; hud.setStatus(status); };
+    const diagnostics = new PartnerDiagnosticClient(next => { diagnostic = next; setStatus(status); });
     const reportError = (message: string) => setStatus({ ...status, state: 'error', message });
     const audio = new OmeSkipper();
     const assistant = new SessionAssistant(settings.enabled, {
@@ -38,7 +42,7 @@ export default defineContentScript({
     const toggle = () => { void toggleEnabled().catch(() => reportError('Could not save settings')); };
     hud.init(toggle, () => { tracker.check(); assistant.next(); }, retry, () => {
       void saveSettings({ showInPageHud: false }).catch(() => reportError('Could not save settings'));
-    });
+    }, () => diagnostics.start(), () => diagnostics.stop(), () => downloadDiagnostic(diagnostic, browser.runtime.getManifest().version));
     hud.update(settings, stats);
     const unwatchSettings = onSettingsChanged(next => {
       settingsRevision++;
@@ -52,6 +56,8 @@ export default defineContentScript({
       if (message?.type === 'WINGMAN_STATUS') respond(status);
       if (message?.type === 'WINGMAN_RETRY') { retry(); respond({ ok: true }); }
       if (message?.type === 'WINGMAN_NEXT') { tracker.check(); assistant.next(); respond({ ok: true }); }
+      if (message?.type === 'WINGMAN_DIAGNOSTIC_START') { diagnostics.start(); respond({ ok: true }); }
+      if (message?.type === 'WINGMAN_DIAGNOSTIC_STOP') { diagnostics.stop(); respond({ ok: true }); }
     };
     browser.runtime.onMessage.addListener(listener);
     ctx.addEventListener(window, 'keydown', event => {
@@ -73,7 +79,7 @@ export default defineContentScript({
     }, { capture: true });
 
     ctx.onInvalidated(() => {
-      assistant.destroy(); tracker.destroy(); audio.destroy(); hud.destroy();
+      diagnostics.destroy(); assistant.destroy(); tracker.destroy(); audio.destroy(); hud.destroy();
       unwatchSettings(); unwatchStats(); browser.runtime.onMessage.removeListener(listener);
     });
     tracker.start();

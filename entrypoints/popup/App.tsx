@@ -3,6 +3,8 @@ import { browser } from 'wxt/browser';
 import { Activity, ArrowUpRight, Check, CircleAlert, Eye, LoaderCircle, RotateCcw, SkipForward, Volume2, X } from 'lucide-react';
 import { getSettings, saveSettings, toggleEnabled, getStats, resetStats, onSettingsChanged, onStatsChanged } from '@/modules/storage';
 import type { RuntimeStatus, WingmanSettings, WingmanStats } from '@/modules/types';
+import { PartnerDataCheck, diagnosticStyles } from '@/modules/ometv/diagnostic-view';
+import { downloadDiagnostic, idleDiagnostic } from '@/modules/ometv/diagnostic-report';
 
 function Toggle({ label, checked, disabled, onChange }: {
   label: string; checked: boolean; disabled?: boolean; onChange: () => void;
@@ -63,7 +65,7 @@ export default function App() {
     setSettings(current => current ? { ...current, ...patch } : current);
     void run(async () => { setSettings(await saveSettings(patch)); });
   };
-  const send = (type: 'WINGMAN_RETRY' | 'WINGMAN_NEXT') => {
+  const send = (type: 'WINGMAN_RETRY' | 'WINGMAN_NEXT' | 'WINGMAN_DIAGNOSTIC_START' | 'WINGMAN_DIAGNOSTIC_STOP') => {
     if (tabId !== null) void run(() => browser.tabs.sendMessage(tabId, { type }));
   };
 
@@ -71,6 +73,7 @@ export default function App() {
     <h1>Wingman</h1>{error ? <p role="alert">{error}</p> : <LoaderCircle className="spin" size={20} aria-label="Loading" />}</main>;
 
   return <main className="app">
+    <style>{diagnosticStyles}</style>
     <header className="header"><div className="brand"><img src="/icon-48.png" width="32" height="32" alt="" /><h1>Wingman</h1>
       <span className="version">{browser.runtime.getManifest().version}</span></div>
       <span className={`activity ${settings.enabled ? 'on' : ''}`}><span />{settings.enabled ? 'On' : 'Paused'}</span></header>
@@ -86,6 +89,9 @@ export default function App() {
         <button className="icon-button" title="Refresh status" aria-label="Refresh status" disabled={busy} onClick={() => send('WINGMAN_RETRY')}><RotateCcw size={15} /></button>}
     </div>
     {error && <div className="error" role="alert"><span>{error}</span><button className="icon-button" title="Dismiss error" aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div>}
+    <PartnerDataCheck report={status.diagnostic} disabled={busy || tabId === null || !status.diagnostic}
+      onStart={() => send('WINGMAN_DIAGNOSTIC_START')} onStop={() => send('WINGMAN_DIAGNOSTIC_STOP')}
+      onDownload={() => downloadDiagnostic(status.diagnostic ?? idleDiagnostic(), browser.runtime.getManifest().version)} />
     <section><div className="section-heading"><h2 className="section-title"><Activity size={14} />Activity</h2>
       <div className="reset">{confirmReset ? <><button className="text-button danger" disabled={busy} onClick={() => {
         void run(async () => { setStats(await resetStats()); setConfirmReset(false); });

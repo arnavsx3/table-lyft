@@ -1,5 +1,5 @@
 import { test as base, chromium, expect, type BrowserContext, type Page, type Worker } from '@playwright/test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { WingmanSettings, WingmanStats } from '../../modules/types';
@@ -20,12 +20,17 @@ const test = base.extend<{ extension: ExtensionFixture }>({
       await worker.evaluate(() => chrome.storage.local.set({ wingman_settings: { enabled: false, soundAlertOnMatch: false } }));
       await context.route('https://ome.tv/**', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html>
         <html><head><title>OmeTV fixture</title><style>body{margin:0;background:#ddd;font-family:sans-serif}.fixture{padding:24px}video{width:640px;height:480px;background:#222}.btn{display:inline-block;padding:12px;cursor:pointer}</style></head>
-        <body><main class="fixture"><div id="remote-video-wrapper" class="s-stop"><video id="remote-video" autoplay muted playsinline></video></div>
+        <body><div id="app"></div><main class="fixture"><div id="remote-video-wrapper" class="s-stop"><video id="remote-video" autoplay muted playsinline></video></div>
         <div class="start-button"><div class="btn btn-main" role="button" aria-label="Start"
           onclick="if(this.querySelector('[data-tr=next]')){document.body.dataset.clicks=String(Number(document.body.dataset.clicks||0)+1);document.querySelector('#remote-video-wrapper').className='s-search'}">
           <span data-tr="start">Start</span></div></div>
         <div class="stop-button"><button onclick="document.querySelector('#remote-video-wrapper').className='s-stop';document.querySelector('video').srcObject=null">Stop</button></div>
         <input aria-label="Chat message"></main><script>
+        let state={ownGender:{gender:{slug:'female'}},rouletteState:{state:'0',interlocutor:null}};
+        const subscribers=new Set();window.fixtureStoreReads=0;
+        const store={getState(){window.fixtureStoreReads++;return state},subscribe(listener){subscribers.add(listener);return()=>subscribers.delete(listener)}};
+        Object.defineProperty(document.querySelector('#app'),'__reactContainer$fixture',{value:{stateNode:{current:{child:{memoizedProps:{store}}}}}});
+        window.fixturePartner=(partner,stage='2')=>{state={...state,rouletteState:{state:stage,interlocutor:partner}};subscribers.forEach(listener=>listener())};
         window.addEventListener('keydown',event=>{if(event.key==='ArrowRight'&&!event.target.closest('input,textarea'))document.querySelector('.btn-main').click()});
         </script></body></html>` }));
       const site = await context.newPage();
@@ -248,4 +253,76 @@ test('larger HUD fits mobile and desktop viewports', async ({ extension: { site,
     await expect(hud.getByRole('button', { name: 'Next connection' })).toBeEnabled();
     await hud.screenshot({ path: testInfo.outputPath(`hud-${width}.png`) });
   }
+});
+
+async function partnerData(site: Page, data: Record<string, unknown>) {
+  await site.evaluate(data => {
+    (window as typeof window & { fixturePartner: (partner: object) => void }).fixturePartner(data);
+  }, data);
+}
+
+test('opt-in partner check crosses worlds, exports only allowlisted values and never skips or changes counters', async ({ extension: { site, popup, worker } }, testInfo) => {
+  const check = site.getByRole('group', { name: 'Partner data check' });
+  await expect(check).toContainText('Not checked');
+  expect(await site.evaluate(() => (window as typeof window & { fixtureStoreReads: number }).fixtureStoreReads)).toBe(0);
+  await popup.getByRole('button', { name: 'Start partner data check' }).click();
+  await expect(check).toContainText('Check ready. Waiting for a connection.');
+  await partnerData(site, { Gender: 1, DialogData: JSON.stringify({ sex: 'female', messages: 'private-chat' }), UserId: 'private-id', Country: 'private-country' });
+  await expect(check).toContainText('Candidate gender field observed; meaning unverified');
+  await expect(check).toContainText('Connections checked: 1 / 20');
+  await expect(check.getByLabel('Last observed candidate fields')).toHaveText('interlocutor.Gender: 1DialogData.sex: female');
+  await expect(popup.getByRole('group', { name: 'Partner data check' })).toContainText('Connections checked: 1 / 20');
+  const downloadReady = site.waitForEvent('download');
+  await check.getByRole('button', { name: 'Download diagnostic report' }).click();
+  const download = await downloadReady;
+  expect(download.suggestedFilename()).toBe('wingman-partner-check.json');
+  const exported = await readFile((await download.path())!, 'utf8');
+  expect(exported).not.toContain('private');
+  expect(JSON.parse(exported)).toMatchObject({ extensionVersion: '1.2.1', checked: 1, withCandidate: 1 });
+  expect((await getStats(worker)).totalSessions).toBe(0);
+  expect((await getStats(worker)).totalSkipped).toBe(0);
+  expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
+  expect(await worker.evaluate(async () => Object.keys(await chrome.storage.local.get(null)))).toEqual(['wingman_settings']);
+  await check.getByRole('button', { name: 'Stop partner data check' }).click();
+  await partnerData(site, { Gender: 'male' });
+  await expect(check).toContainText('Connections checked: 1 / 20');
+  await check.screenshot({ path: testInfo.outputPath('partner-check-result.png') });
+  await site.reload(); await expect(site.getByRole('group', { name: 'Partner data check' })).toContainText('Not checked');
+});
+
+test('missing fields differ from an unavailable observer and checks stop at the sample limit', async ({ extension: { site, worker } }) => {
+  const check = site.getByRole('group', { name: 'Partner data check' });
+  await check.getByRole('button', { name: 'Start partner data check' }).click();
+  await expect(check).toContainText('Check ready. Waiting for a connection.');
+  for (let i = 0; i < 21; i++) await partnerData(site, { UserId: 'private' });
+  await expect(check).toContainText('No gender field seen in checked connections');
+  await expect(check).toContainText('Connections checked: 20 / 20');
+  await expect(check.getByRole('button', { name: 'Start partner data check' })).toBeVisible();
+  expect((await getStats(worker)).totalSkipped).toBe(0);
+  await site.locator('#app').evaluate(element => element.remove());
+  await check.getByRole('button', { name: 'Start partner data check' }).click();
+  await expect(check).toContainText('Partner data could not be inspected', { timeout: 15000 });
+  await expect(check).toContainText('Connections checked: 0 / 20');
+});
+
+test('diagnostic values remain bounded and fit both panels on narrow and desktop layouts', async ({ extension: { site, popup } }, testInfo) => {
+  const check = site.getByRole('group', { name: 'Partner data check' });
+  await check.getByRole('button', { name: 'Start partner data check' }).click();
+  await expect(check).toContainText('Check ready. Waiting for a connection.');
+  await partnerData(site, { Gender: 'private-email', gender: 'female', Sex: 2, sex: 'non-binary', DialogData: JSON.stringify({ Gender: 'couple', gender: 'male', Sex: true, sex: 'unknown' }) });
+  await expect(check).toContainText('interlocutor.Gender: value withheld');
+  await expect(check).not.toContainText('private');
+  for (const width of [320, 1280]) {
+    await site.setViewportSize({ width, height: 800 });
+    const hud = site.getByRole('complementary', { name: 'Wingman' });
+    expect(await hud.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const box = (await hud.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.y + box.height).toBeLessThanOrEqual(800);
+    await hud.screenshot({ path: testInfo.outputPath(`diagnostic-hud-${width}.png`) });
+  }
+  await popup.setViewportSize({ width: 520, height: 600 });
+  await expect(popup.getByRole('group', { name: 'Partner data check' })).toContainText('value withheld');
+  expect(await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await popup.locator('main.app').screenshot({ path: testInfo.outputPath('diagnostic-settings.png') });
 });

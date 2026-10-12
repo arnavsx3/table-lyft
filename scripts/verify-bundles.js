@@ -9,8 +9,10 @@ for (const browser of ['chrome', 'firefox']) {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.version, pkg.version);
   assert.deepEqual(manifest.permissions, ['storage']);
-  assert.equal(manifest.content_scripts.length, 1, 'Only the isolated content script should be injected');
-  assert.ok(manifest.content_scripts.every(script => !script.world || script.world === 'ISOLATED'));
+  assert.equal(manifest.content_scripts.length, 2, 'Isolated controls and a dormant page-world diagnostic bridge');
+  assert.equal(manifest.content_scripts.filter(script => !script.world || script.world === 'ISOLATED').length, 1);
+  const bridge = manifest.content_scripts.find(script => script.world === 'MAIN');
+  assert.ok(bridge && bridge.matches.every(host => /ome\.tv/.test(host)), 'Partner diagnostic bridge is OmeTV-only');
   assert.ok(manifest.host_permissions.every(host => /ome\.tv|minichat\.com/.test(host)));
   if (browser === 'firefox') assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions.required, ['none']);
   assert.ok(!(await readdir(root)).includes('models'), 'Manual-control builds must not ship model weights');
@@ -21,5 +23,5 @@ for (const browser of ['chrome', 'firefox']) {
     const source = await readFile(path.join(root, file), 'utf8');
     assert.ok(!/withAgeAndGender|ageGenderNet|tinyFaceDetector/.test(source), 'No video classification in the active content script');
   }
-  console.log(`${browser}: MV3 manifest, permissions, manual controls and absence of inference/models verified`);
+  console.log(`${browser}: MV3, permissions, controls, OmeTV diagnostic bridge and absence of inference/models verified`);
 }

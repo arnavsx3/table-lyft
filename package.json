@@ -1,6 +1,6 @@
 {
   "name": "wingman",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Cross-browser manual session controls and persistent counters for OmeTV",
   "private": true,
   "type": "module",

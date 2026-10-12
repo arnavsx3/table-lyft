@@ -36,7 +36,7 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'wingman-extension@arnavsx3.github.io',
-        strict_min_version: '109.0',
+        strict_min_version: '128.0',
         data_collection_permissions: { required: ['none'] }
       }
     }
