@@ -1,0 +1,213 @@
+:root {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #202826;
+  background: #f6f8f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  color-scheme: light;
+  --ink: #202826;
+  --muted: #66736d;
+  --line: #dfe5e1;
+  --green: #17614d;
+  --mint: #e5f4ec;
+}
+* {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+button,
+input,
+select {
+  border-radius: 5px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #287dc2;
+  outline-offset: 3px;
+}
+button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+  flex: 0 0 auto;
+}
+input[type="text"],
+input[type="search"],
+input[type="number"],
+select {
+  min-width: 0;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #ccd6cf;
+  padding: 8px 10px;
+}
+input[type="number"] {
+  width: 70px;
+}
+a {
+  color: #25668a;
+  text-underline-offset: 3px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.brand img {
+  flex: 0 0 auto;
+}
+.brand-compact {
+  font-size: 18px;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid #cbd6cf;
+  background: #fff;
+  color: #283c32;
+  padding: 8px 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.button:hover:not(:disabled) {
+  background: #f1f6f3;
+  border-color: #9bb4a5;
+}
+.button.primary {
+  color: #fff;
+  background: var(--green);
+  border-color: var(--green);
+}
+.button.primary:hover:not(:disabled) {
+  background: #104b3b;
+}
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #607168;
+  flex: 0 0 auto;
+  padding: 0;
+}
+.icon-button:hover:not(:disabled) {
+  background: #eaf0ec;
+  border-color: #d9e4dd;
+}
+.icon-button.danger:hover {
+  color: #a33a35;
+  background: #fff0ed;
+}
+.muted {
+  color: var(--muted);
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #52685d;
+}
+.status-label svg {
+  width: 14px;
+  height: 14px;
+}
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  background: #fff0e9;
+  color: #8b3c22;
+  border: 1px solid #f0ccbc;
+  border-radius: 5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.error > svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.error p {
+  margin: 0;
+  flex: 1;
+}
+.empty-state {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  padding: 32px 20px;
+}
+.empty-state > svg {
+  width: 34px;
+  height: 34px;
+  color: #80968a;
+}
+.empty-state h1,
+.empty-state h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 0;
+}
+.empty-state p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 440px;
+  line-height: 1.5;
+}
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 13px;
+}
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7b71;
+}

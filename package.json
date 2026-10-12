@@ -5,7 +5,9 @@
   "description": "Local-first, on-click web table capture and clean CSV, spreadsheet, and Markdown exports.",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
