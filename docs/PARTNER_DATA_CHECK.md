@@ -1,16 +1,16 @@
 # Partner Data Check
 
-Version 1.2.1 is a diagnostic release, not an automatic gender-filtering release.
+Version 1.2.1 introduced this diagnostic. Version 1.3.0 keeps it independent of a separate, off-by-default experimental metadata-only prototype. Diagnostic reports never drive prototype decisions.
 
 ## Run It in Brave
 
-1. Reload Wingman in `brave://extensions`, then refresh OmeTV. Confirm version **1.2.1** in Wingman's settings panel.
+1. Reload Wingman in `brave://extensions`, then refresh OmeTV. Confirm version **1.3.0** in Wingman's settings panel.
 2. In **Partner data check**, click the scan icon labeled **Start partner data check**. This works independently of the Session tracking switch.
 3. Use OmeTV normally. Wingman does not click Start, obtain camera/microphone permission, or establish a chat for you.
 4. Allow several normal connections to be checked. An already-active connection may be sampled immediately. The check ends after 20 samples or five minutes; the square icon stops it sooner.
 5. Click the download icon to save `wingman-partner-check.json`. Share that reduced report when debugging, not screenshots of strangers, chat content, or full network captures.
 
-Reports reset on page reload. No diagnostic results are saved to extension storage. Normal session and manual-skip counting are unchanged; this diagnostic has no action or counter-writing path.
+Reports reset on page reload. No diagnostic results are saved to extension storage. This diagnostic has no action or counter-writing path; leave Experimental auto-skip off when inspecting data without automatic behavior.
 
 ## Read the Result
 
@@ -50,7 +50,7 @@ The official desktop bundle fetched again for this verification had SHA-256 `44c
 
 These are protocol values, not the saved selector indexes. The local storage indexes are `0`, `1`, and `2` respectively. A separate outgoing `ExtraUserData.Gender` can be forced to the male selector value when `ticket.isPayer` or `ticket.isSuspected` is set. Neither outgoing field proves which value the server places in the received partner payload, or whether it transforms that value.
 
-No explicit mapping from received `interlocutor.Gender` to a partner's selected setting was established by this source inspection. Filtering remains unimplemented. In particular, `1` cannot be presented as verified male-only metadata: even the outgoing selector shares that code with couples.
+No explicit mapping from received `interlocutor.Gender` to a partner's selected setting was established by this source inspection. Version 1.3.0 offers an opt-in prototype based on the outgoing-code assumption at the user's request; this does not verify the received field's meaning or provenance. In particular, `1` cannot be presented as verified male-only metadata: even the outgoing selector shares that code with couples.
 
 ### Remaining Controlled Check
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 - 2026-10-12
+
+### Added
+
+- Off-by-default experimental OmeTV desktop auto-skip using the unverified assumption that received `interlocutor.Gender` matches outgoing codes: female `2`, male/couple `1`. Unknown values are never skipped.
+- Fresh exact-field snapshots bound to established partner state, tab-local pair sequence and active remote media; no retained diagnostic values or media classification.
+- Stable decisions, configurable automatic delay, action spacing, stale-response cancellation, and one automatic request per pair without repeat-clicking failures.
+- Fresh Girls connected and Male/couple skipped counters, visible unverified-mapping notices, and transition-confirmed automatic-skip accounting. Historical counters are preserved, not relabeled.
+- Unit and installed-extension coverage for current-partner snapshots, bridge validation, unknown/conflicting data, deduplication, failure, Stop, pause, mode changes, persistence, reset and layout.
+
+### Changed
+
+- Replace visible Sessions/Skipped totals with experimental code-based activity. Manual Next remains available but does not increase prototype counters.
+- Keep automatic skipping off unless the user explicitly enables the metadata prototype. Media classification is never enabled or shipped.
+
 ## 1.2.1 - 2026-10-12
 
 ### Added
