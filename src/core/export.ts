@@ -45,5 +45,6 @@ export function csvFilename(label: string): string {
     .replace(/[. ]+$/g, '')
     .trim()
     .slice(0, 90);
-  return `${name || 'tablelyft-export'}.csv`;
+  const safe = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name) ? `_${name}` : name;
+  return `${safe || 'tablelyft-export'}.csv`;
 }

@@ -1,7 +1,7 @@
 import { type Browser, browser } from 'wxt/browser';
 import { sampleTable } from '@/core/sample';
 import { type Capture, messageSchema, type Reply, sanitizeSourceUrl } from '@/core/schema';
-import { CaptureRepository } from '@/extension/repository';
+import { CaptureRepository, type PendingCapture } from '@/extension/repository';
 
 export default defineBackground(() => {
   const repository = new CaptureRepository(browser.storage.session);
@@ -111,12 +111,20 @@ export default defineBackground(() => {
       await repository.cancel(sender.tab.id, message.token);
       return { ok: true };
     }
-    const pending = await repository.consume(
-      sender.tab.id,
-      sender.documentId,
-      sender.frameId,
-      message.token,
-    );
+    let pending: PendingCapture;
+    try {
+      pending = await repository.consume(
+        sender.tab.id,
+        sender.documentId,
+        sender.frameId,
+        message.token,
+      );
+    } catch {
+      return {
+        ok: false,
+        error: 'Selection access expired. Open TableLyft on the source page again.',
+      };
+    }
     return openCapture(message.table, pending.source);
   }
 

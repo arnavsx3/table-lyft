@@ -72,6 +72,26 @@ describe('HTML extraction', () => {
   it('does not assume a plain first row contains headings', () => {
     expect(extractTable(table('<table><tr><td>1</td></tr></table>')).suggestedHeaderRows).toBe(0);
   });
+  it('excludes transparent, collapsed and editable content', () => {
+    expect(
+      extractTable(
+        table(`<table><tr><td>Public<span style="opacity:0">hidden</span>
+      <span style="content-visibility:hidden">collapsed</span><div contenteditable>draft</div>
+      <div role="textbox">secret</div><details><summary>Summary</summary><p>closed</p></details>
+      <details open><summary>Open</summary><p>Visible</p></details></td></tr></table>`),
+      ).rows,
+    ).toEqual([['Public\n\nSummary\nOpen\nVisible']]);
+  });
+  it('rejects expanded cell and text budgets without partial output', () => {
+    expect(() =>
+      extractTable(
+        table(`<table><tbody>${'<tr><td colspan="100">x</td></tr>'.repeat(501)}</tbody></table>`),
+      ),
+    ).toThrow(/50,000-cell/);
+    expect(() =>
+      extractTable(table(`<table><tr><td colspan="100">${'x'.repeat(10001)}</td></tr></table>`)),
+    ).toThrow(/text-size/);
+  });
   it('rejects detached, hidden and empty tables', () => {
     expect(() => extractTable(document.createElement('table'))).toThrow(/no longer/);
     expect(() => extractTable(table('<table hidden><tr><td>x</td></tr></table>'))).toThrow(
@@ -221,6 +241,8 @@ describe('exports', () => {
   it('makes filesystem-safe export filenames', () => {
     expect(csvFilename('A/B: report')).toBe('A-B- report.csv');
     expect(csvFilename('')).toBe('tablelyft-export.csv');
+    expect(csvFilename('CON')).toBe('_CON.csv');
+    expect(csvFilename('nul.backup')).toBe('_nul.backup.csv');
   });
 });
 

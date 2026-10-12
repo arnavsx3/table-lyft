@@ -522,6 +522,7 @@ export default function App() {
                               <button
                                 type="button"
                                 title={`Sort by ${header}`}
+                                aria-label={`Sort by ${header}`}
                                 onClick={() => toggleSort(column)}
                               >
                                 <span>{header}</span>

@@ -30,13 +30,21 @@ export function isRendered(element: Element, cache = new WeakMap<Element, boolea
   const cached = cache.get(element);
   if (cached !== undefined) return cached;
   const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  const parent = element.parentElement;
+  const insideClosedDetails =
+    parent?.tagName === 'DETAILS' &&
+    !parent.hasAttribute('open') &&
+    element !== parent.querySelector(':scope > summary');
   const visible =
     !element.hasAttribute('hidden') &&
     element.getAttribute('aria-hidden') !== 'true' &&
     style?.display !== 'none' &&
     style?.visibility !== 'hidden' &&
     style?.visibility !== 'collapse' &&
-    (!element.parentElement || isRendered(element.parentElement, cache));
+    style?.contentVisibility !== 'hidden' &&
+    Number.parseFloat(style?.opacity ?? '') !== 0 &&
+    !insideClosedDetails &&
+    (!parent || isRendered(parent, cache));
   cache.set(element, visible);
   return visible;
 }
@@ -63,6 +71,9 @@ function textOf(
     const element = node as Element;
     if (
       ignoredTags.has(element.tagName) ||
+      (element.hasAttribute('contenteditable') &&
+        !['false', 'inherit'].includes(element.getAttribute('contenteditable') ?? '')) ||
+      element.getAttribute('role') === 'textbox' ||
       (element.tagName === 'TABLE' && element !== root) ||
       !isRendered(element, cache)
     )
