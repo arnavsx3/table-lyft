@@ -89,12 +89,8 @@ export default function App() {
         <button className="icon-button" title="Refresh status" aria-label="Refresh status" disabled={busy} onClick={() => send('WINGMAN_RETRY')}><RotateCcw size={15} /></button>}
     </div>
     <section className="prototype"><div className="option"><span>Experimental auto-skip</span>
-      <Toggle label="Experimental auto-skip" checked={settings.experimentalAutoSkip} disabled={busy}
-        onChange={() => save({ experimentalAutoSkip: !settings.experimentalAutoSkip })} /></div>
-      <p className="prototype-note">2 = female; 1 = male/couple. Partner mapping unverified. Unknown values stay. OmeTV desktop only.</p>
-      <label className="range-setting"><span className="range-heading"><span>Skip delay</span><output>{Math.max(500, settings.skipDelayMinMs)}{Math.max(500, settings.skipDelayMaxMs) > Math.max(500, settings.skipDelayMinMs) && `-${Math.max(500, settings.skipDelayMaxMs)}`} ms</output></span>
-        <input type="range" aria-label="Skip delay" min="500" max="5000" step="50" value={Math.max(500, settings.skipDelayMinMs)} disabled={busy}
-          onChange={event => { const delay = Number(event.target.value); save({ skipDelayMinMs: delay, skipDelayMaxMs: delay }); }} /></label>
+      <Toggle label="Experimental auto-skip" checked={false} disabled onChange={() => {}} /></div>
+      <p className="prototype-note">Unavailable: partner code mapping is unreliable. Gender totals cannot be determined.</p>
     </section>
     {error && <div className="error" role="alert"><span>{error}</span><button className="icon-button" title="Dismiss error" aria-label="Dismiss error" onClick={() => setError('')}><X size={14} /></button></div>}
     <PartnerDataCheck report={status.diagnostic} disabled={busy || tabId === null || !status.diagnostic}
@@ -105,8 +101,8 @@ export default function App() {
         void run(async () => { setStats(await resetStats()); setConfirmReset(false); });
       }}>Reset all</button><button className="icon-button" aria-label="Cancel reset" title="Cancel reset" onClick={() => setConfirmReset(false)}><X size={14} /></button></> :
         <button className="icon-button" aria-label="Reset statistics" title="Reset statistics" onClick={() => setConfirmReset(true)}><RotateCcw size={14} /></button>}</div>
-      </div><div className="stats"><div><strong className="green" aria-label="Girls connected">{stats.girlsConnected.toLocaleString()}</strong><span>Girls connected (code 2)</span></div>
-        <div><strong className="rose" aria-label="Male/couple skipped">{stats.maleCoupleSkipped.toLocaleString()}</strong><span>Male/couple skipped (code 1)</span></div></div>
+      </div><div className="stats"><div><strong className="green" aria-label="Girls connected">--</strong><span>Girls connected: unavailable</span></div>
+        <div><strong className="rose" aria-label="Male/couple skipped">--</strong><span>Male/couple skipped: unavailable</span></div></div>
     </section>
     <section className="preferences"><div className="option"><span><Eye size={15} />In-page controls</span>
       <Toggle label="In-page controls" checked={settings.showInPageHud} disabled={busy} onChange={() => save({ showInPageHud: !settings.showInPageHud })} /></div>
@@ -114,6 +110,6 @@ export default function App() {
         disabled={busy} onChange={() => save({ soundAlertOnMatch: !settings.soundAlertOnMatch })} /></div></section>
     <button className="next-button" aria-label="Next connection" disabled={busy || !settings.enabled || !status.canSkip || tabId === null}
       onClick={() => send('WINGMAN_NEXT')}><SkipForward size={17} />Next</button>
-    <footer><span><Check size={13} />{settings.experimentalAutoSkip ? 'Experimental metadata mode' : 'Manual controls'}</span><a href="https://github.com/arnavsx3/wingman" target="_blank" rel="noreferrer" title="Wingman on GitHub">GitHub<ArrowUpRight size={13} /></a></footer>
+    <footer><span><Check size={13} />Manual controls</span><a href="https://github.com/arnavsx3/wingman" target="_blank" rel="noreferrer" title="Wingman on GitHub">GitHub<ArrowUpRight size={13} /></a></footer>
   </main>;
 }

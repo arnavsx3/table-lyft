@@ -28,8 +28,6 @@ export const recordMatch = (gender: GenderType) => mutate<WingmanStats>({ type: 
 export const resetStats = () => mutate<WingmanStats>({ type: 'reset' });
 export const recordSession = () => mutate<WingmanStats>({ type: 'session' });
 export const recordManualSkip = () => mutate<WingmanStats>({ type: 'manualSkip' });
-export const recordPrototypeGirl = () => mutate<WingmanStats>({ type: 'prototypeGirl' });
-export const recordPrototypeSkip = () => mutate<WingmanStats>({ type: 'prototypeSkip' });
 
 export function onSettingsChanged(callback: (settings: WingmanSettings) => void) {
   const listener: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {

@@ -15,6 +15,7 @@ export interface DiagnosticReport {
   checked: number;
   withCandidate: number;
   fields: CandidateField[];
+  rootCodeTotals?: { code1: number; code2: number; otherOrMissing: number };
   issue?: 'bridge_unavailable' | 'store_unavailable' | 'unsupported_site';
 }
 
@@ -68,7 +69,17 @@ export function sanitizeDiagnostic(value: unknown): DiagnosticReport | null {
     if (field.format !== safe.format) return null;
     fields.push(safe);
   }
+  let rootCodeTotals: DiagnosticReport['rootCodeTotals'];
+  if (report.rootCodeTotals !== undefined) {
+    const counts = report.rootCodeTotals;
+    if (!counts || typeof counts !== 'object') return null;
+    const { code1, code2, otherOrMissing } = counts;
+    if (![code1, code2, otherOrMissing].every(count => Number.isInteger(count) && count >= 0 && count <= DIAGNOSTIC_LIMIT) ||
+      code1 + code2 + otherOrMissing !== report.checked || code1 + code2 > report.withCandidate) return null;
+    rootCodeTotals = { code1, code2, otherOrMissing };
+  }
   return { state: report.state, checked: report.checked, withCandidate: report.withCandidate, fields,
+    ...(rootCodeTotals ? { rootCodeTotals } : {}),
     ...(report.issue ? { issue: report.issue } : {}) };
 }
 
@@ -89,9 +100,9 @@ export function diagnosticMessage(report: DiagnosticReport) {
 export function diagnosticJson(report: DiagnosticReport, version: string) {
   const safe = sanitizeDiagnostic(report);
   if (!safe) throw new Error('Invalid diagnostic report');
-  return JSON.stringify({ extensionVersion: version, method: 'OmeTV partner-state allowlist v1',
+  return JSON.stringify({ extensionVersion: version, method: 'OmeTV partner-state allowlist v2',
     ...safe, result: diagnosticMessage(safe),
-    note: 'Only interlocutor and DialogData Gender/gender/Sex/sex fields were checked. Fields and numeric meanings are unverified. Absence here does not prove the site never exposes gender. Page data is untrusted. No media, chat, user IDs or per-person history included.' }, null, 2);
+    note: 'Only interlocutor and DialogData Gender/gender/Sex/sex fields were checked. rootCodeTotals counts exact root Gender numbers 1 and 2 at the first sample of each distinct partner object; all other or missing values share one bucket. These are raw code totals, not gender totals, unique people or a timeline. The code-to-gender assumption was withdrawn after reported incorrect skips. Fields and numeric meanings remain unverified. Page data is untrusted. No media, chat, user IDs or per-person history included.' }, null, 2);
 }
 
 export function downloadDiagnostic(report: DiagnosticReport, version: string) {

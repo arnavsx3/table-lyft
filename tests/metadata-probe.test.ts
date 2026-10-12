@@ -27,6 +27,17 @@ describe('read-only partner state probe', () => {
     return { probe, reports, latest: () => reports.at(-1)! };
   };
 
+  it('aggregates exact root numeric codes without assigning gender or retaining a timeline', () => {
+    const page = fixture(); const { probe, latest } = create(); probe.start();
+    const partner = { Gender: 1 };
+    page.set(partner); page.set(partner, '3');
+    page.set({ Gender: 2 }); page.set({ Gender: '2', DialogData: '{"Gender":2}' }); page.set({});
+    expect(latest()).toMatchObject({ checked: 4, withCandidate: 3,
+      rootCodeTotals: { code1: 1, code2: 1, otherOrMissing: 2 } });
+    probe.stop(); probe.start();
+    expect(latest()).toMatchObject({ checked: 1, rootCodeTotals: { code1: 0, code2: 0, otherOrMissing: 1 } });
+  });
+
   it('is dormant until started, excludes own gender and counts an interlocutor only once', () => {
     const page = fixture(); const { probe, latest } = create();
     expect(page.store.getState).not.toHaveBeenCalled();

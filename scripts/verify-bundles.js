@@ -19,9 +19,10 @@ for (const browser of ['chrome', 'firefox']) {
   const scripts = [...manifest.content_scripts.flatMap(script => script.js),
     ...(manifest.background.scripts ?? [manifest.background.service_worker])];
   for (const file of [...scripts, manifest.action.default_popup, 'THIRD_PARTY_NOTICES.txt']) assert.ok((await stat(path.join(root, file))).size > 0);
-  for (const file of manifest.content_scripts.flatMap(script => script.js)) {
+  for (const file of scripts) {
     const source = await readFile(path.join(root, file), 'utf8');
     assert.ok(!/withAgeAndGender|ageGenderNet|tinyFaceDetector/.test(source), 'No video classification in the active content script');
+    assert.ok(!/wingman-partner-prototype-v1|prototypeGirl|prototypeSkip|Female code \(2\)|Male\/couple code \(1\)/.test(source), 'Withdrawn numeric mapping, counter commands and action bridge are not shipped');
   }
   console.log(`${browser}: MV3, permissions, controls, OmeTV diagnostic bridge and absence of inference/models verified`);
 }

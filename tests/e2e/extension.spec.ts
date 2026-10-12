@@ -97,22 +97,22 @@ test('shortcut ignores text entry and keeps settings, HUD and badge in sync', as
   await expect.poll(() => worker.evaluate(() => chrome.action.getBadgeText({}))).toBe('OFF');
 });
 
-test('background serializes prototype counter writes and syncs the HUD through reset', async ({ extension: { popup, site, worker } }) => {
+test('background preserves history and resets it without claiming gender totals', async ({ extension: { popup, site, worker } }) => {
   await popup.evaluate(async () => Promise.all(Array.from({ length: 20 }, () =>
-    chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation: { type: 'prototypeSkip' } }))));
+    chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation: { type: 'manualSkip' } }))));
   await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(20);
-  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('20');
+  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('--');
   const hud = site.getByRole('complementary', { name: 'Wingman' });
-  await expect(hud.locator('.skips strong')).toHaveText('20');
+  await expect(hud.locator('.skips strong')).toHaveText('--');
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Cancel reset' }).click();
-  await expect(hud.locator('.skips strong')).toHaveText('20');
+  await expect(hud.locator('.skips strong')).toHaveText('--');
   await popup.getByRole('button', { name: 'Reset statistics' }).click();
   await popup.getByRole('button', { name: 'Reset all' }).click();
   await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(0);
-  await expect(hud.locator('.skips strong')).toHaveText('0');
+  await expect(hud.locator('.skips strong')).toHaveText('--');
   await site.reload();
-  await expect(site.getByRole('complementary', { name: 'Wingman' }).locator('.skips strong')).toHaveText('0');
+  await expect(site.getByRole('complementary', { name: 'Wingman' }).locator('.skips strong')).toHaveText('--');
 });
 
 test('live sessions and HUD/native/keyboard skips update both displays without classification', async ({ extension: { site, popup, worker } }) => {
@@ -121,7 +121,7 @@ test('live sessions and HUD/native/keyboard skips update both displays without c
   await expect(site.getByRole('status')).toHaveText('Connected');
   await expect.poll(async () => (await getStats(worker)).totalSessions).toBe(1);
   const hud = site.getByRole('complementary', { name: 'Wingman' });
-  await expect(hud.getByLabel('Girls connected', { exact: true }).locator('strong')).toHaveText('0');
+  await expect(hud.getByLabel('Girls connected', { exact: true }).locator('strong')).toHaveText('--');
   await expect(hud.getByLabel('Sessions', { exact: true })).toHaveCount(0);
   await expect(hud.getByLabel('Chat duration')).not.toHaveText('00:00');
   await hud.getByRole('button', { name: 'Next connection' }).click();
@@ -135,7 +135,7 @@ test('live sessions and HUD/native/keyboard skips update both displays without c
   await expect.poll(async () => (await getStats(worker)).totalSessions).toBe(2);
   await site.locator('.btn-main').click();
   await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(2);
-  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('0');
+  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('--');
 
   await connect(site);
   await expect.poll(async () => (await getStats(worker)).totalSessions).toBe(3);
@@ -157,8 +157,8 @@ test('live sessions and HUD/native/keyboard skips update both displays without c
   await expect(site.getByRole('status')).toHaveText('Waiting for next connection');
   expect((await getStats(worker)).totalSkipped).toBe(4);
   await site.reload();
-  await expect(popup.getByLabel('Girls connected', { exact: true })).toHaveText('0');
-  await expect(site.getByRole('complementary', { name: 'Wingman' }).locator('.skips strong')).toHaveText('0');
+  await expect(popup.getByLabel('Girls connected', { exact: true })).toHaveText('--');
+  await expect(site.getByRole('complementary', { name: 'Wingman' }).locator('.skips strong')).toHaveText('--');
 });
 
 test('failed Next requests do not inflate counters and remain retryable', async ({ extension: { site, popup, worker } }) => {
@@ -279,7 +279,8 @@ test('opt-in partner check crosses worlds, exports only allowlisted values and n
   expect(download.suggestedFilename()).toBe('wingman-partner-check.json');
   const exported = await readFile((await download.path())!, 'utf8');
   expect(exported).not.toContain('private');
-  expect(JSON.parse(exported)).toMatchObject({ extensionVersion: '1.3.0', checked: 1, withCandidate: 1 });
+  expect(JSON.parse(exported)).toMatchObject({ extensionVersion: '1.3.1', checked: 1, withCandidate: 1,
+    rootCodeTotals: { code1: 1, code2: 0, otherOrMissing: 0 } });
   expect((await getStats(worker)).totalSessions).toBe(0);
   expect((await getStats(worker)).totalSkipped).toBe(0);
   expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
@@ -328,89 +329,52 @@ test('diagnostic values remain bounded and fit both panels on narrow and desktop
   await popup.locator('main.app').screenshot({ path: testInfo.outputPath('diagnostic-settings.png') });
 });
 
-test('experimental mode counts code 2 once and automatically skips code 1 only after a transition', async ({ extension: { site, popup, worker } }, testInfo) => {
-  await enableTracking(popup);
+test('saved 1.3.0 enablement cannot restart numeric auto-skip or claim gender counts', async ({ extension: { site, popup, worker } }) => {
+  await worker.evaluate(() => chrome.storage.local.set({
+    wingman_settings: { enabled: true, experimentalAutoSkip: true, soundAlertOnMatch: false },
+    wingman_stats: { girlsConnected: 3, maleCoupleSkipped: 42, totalSkipped: 42 },
+  }));
+  await site.reload(); await connect(site);
+  await expect(popup.getByRole('switch', { name: 'Experimental auto-skip' })).toBeDisabled();
   await expect(popup.getByRole('switch', { name: 'Experimental auto-skip' })).not.toBeChecked();
-  await connect(site);
-  await partnerData(site, { PairId: 'fixture-female', Gender: 2 }, '3');
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).check();
-  await expect.poll(async () => (await getStats(worker)).girlsConnected).toBe(1);
-  const hud = site.getByRole('complementary', { name: 'Wingman' });
-  await expect(hud.getByLabel('Girls connected', { exact: true }).locator('strong')).toHaveText('1');
-  await expect(popup.getByLabel('Girls connected', { exact: true })).toHaveText('1');
-  await expect(site.getByRole('status')).toHaveText('Female code (2) - experimental mapping');
-  await partnerData(site, { PairId: 'fixture-female', Gender: 2 }, '3');
-  await site.getByRole('button', { name: 'Pause tracking' }).click();
-  await site.getByRole('button', { name: 'Resume tracking' }).click();
-  await expect(site.getByRole('status')).toHaveText('Female code (2) - experimental mapping');
-  expect((await getStats(worker)).girlsConnected).toBe(1);
+  await expect(site.getByRole('status')).toHaveText('Connected');
+  await partnerData(site, { PairId: 'fixture-one', Gender: 1 }, '3');
+  await site.waitForTimeout(1200);
+  await partnerData(site, { PairId: 'fixture-two', Gender: 2 }, '3');
+  await site.waitForTimeout(1200);
   expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
-  for (const width of [320, 1280]) {
-    await site.setViewportSize({ width, height: 800 });
-    expect(await hud.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    const box = (await hud.boundingBox())!;
-    expect(box.x + box.width).toBeLessThanOrEqual(width); expect(box.y + box.height).toBeLessThanOrEqual(800);
-    await hud.screenshot({ path: testInfo.outputPath(`prototype-hud-${width}.png`) });
-  }
-  await popup.setViewportSize({ width: 520, height: 600 });
-  await popup.locator('main.app').screenshot({ path: testInfo.outputPath('prototype-settings.png') });
-  await partnerData(site, { PairId: 'fixture-male-couple', Gender: 1 }, '3');
-  await expect.poll(async () => (await getStats(worker)).maleCoupleSkipped).toBe(1);
-  await expect(site.locator('body')).toHaveAttribute('data-clicks', '1');
-  await expect(hud.getByLabel('Male/couple skipped', { exact: true }).locator('strong')).toHaveText('1');
-  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('1');
-  expect((await getStats(worker)).totalSkipped).toBe(1);
-  expect((await getStats(worker)).girlsConnected).toBe(1);
-  await site.reload();
-  await expect(site.getByRole('complementary', { name: 'Wingman' }).locator('.skips strong')).toHaveText('1');
+  expect(await site.evaluate(() => (window as typeof window & { fixtureStoreReads: number }).fixtureStoreReads)).toBe(0);
+  expect(await getStats(worker)).toMatchObject({ girlsConnected: 3, maleCoupleSkipped: 42, totalSkipped: 42 });
+  const stale = await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE', mutation: { type: 'prototypeSkip' } }));
+  expect(stale.ok).toBe(false);
+  await expect(popup.getByLabel('Girls connected', { exact: true })).toHaveText('--');
+  await expect(popup.getByLabel('Male/couple skipped', { exact: true })).toHaveText('--');
+  const changed = await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'WINGMAN_MUTATE',
+    mutation: { type: 'settings', patch: { experimentalAutoSkip: true } } }));
+  expect(changed.value.experimentalAutoSkip).toBe(false);
+  await expect.poll(async () => (await getSettings(worker)).experimentalAutoSkip).toBe(false);
+  await site.getByRole('button', { name: 'Next connection' }).click();
+  await expect.poll(async () => (await getStats(worker)).totalSkipped).toBe(43);
+  expect((await getStats(worker)).maleCoupleSkipped).toBe(42);
 });
 
-test('experimental mode leaves unknown, unbound and not-yet-connected partner data untouched', async ({ extension: { site, popup, worker } }) => {
+test('raw-code diagnostics count samples without gender labels, automatic clicks or counter writes', async ({ extension: { site, popup, worker } }) => {
   await enableTracking(popup); await connect(site);
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).check();
-  await partnerData(site, { Gender: 1 }, '3');
-  await expect(site.getByRole('status')).toHaveText('Waiting for established partner data');
-  await partnerData(site, { PairId: 'fixture-finding', Gender: 1 }, '2');
-  await expect(site.getByRole('status')).toHaveText('Waiting for established partner data');
-  await partnerData(site, { PairId: 'fixture-unknown', Gender: '1', DialogData: '{"Gender":2}' }, '3');
-  await expect(site.getByRole('status')).toHaveText('Unknown gender code - leaving connection unchanged');
-  await site.waitForTimeout(1500);
+  await expect.poll(async () => (await getStats(worker)).totalSessions).toBe(1);
+  const before = await getStats(worker);
+  const check = site.getByRole('group', { name: 'Partner data check' });
+  await check.getByRole('button', { name: 'Start partner data check' }).click();
+  await expect(check).toContainText('Check ready. Waiting for a connection.');
+  await partnerData(site, { Gender: 1 }); await partnerData(site, { Gender: 2 });
+  await partnerData(site, { Gender: '2', DialogData: '{"Gender":2}' }); await partnerData(site, {});
+  await expect(check.getByLabel('Raw partner code totals')).toHaveText('Root Gender codes: 1 = 1; 2 = 1; other/missing = 2.');
+  await expect(popup.getByRole('group', { name: 'Partner data check' })).toContainText('Root Gender codes: 1 = 1; 2 = 1; other/missing = 2.');
+  const downloadReady = site.waitForEvent('download');
+  await check.getByRole('button', { name: 'Download diagnostic report' }).click();
+  const downloaded = JSON.parse(await readFile((await (await downloadReady).path())!, 'utf8'));
+  expect(downloaded).toMatchObject({ method: 'OmeTV partner-state allowlist v2', checked: 4,
+    rootCodeTotals: { code1: 1, code2: 1, otherOrMissing: 2 } });
   expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
-  expect((await getStats(worker)).maleCoupleSkipped).toBe(0); expect((await getStats(worker)).girlsConnected).toBe(0);
-  await site.locator('#app').evaluate(element => element.remove());
-  await expect(site.getByRole('status')).toHaveText('Partner data unavailable - leaving connection unchanged');
-});
-
-test('automatic Next failure never increments prototype skipped and does not repeat-click', async ({ extension: { site, popup, worker } }) => {
-  await enableTracking(popup); await connect(site);
-  await site.locator('.btn-main').evaluate(element => element.removeAttribute('onclick'));
-  await partnerData(site, { PairId: 'fixture-ignored', Gender: 1 }, '3');
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).check();
-  await expect(site.getByRole('status')).toHaveText('Next did not change the connection. Try again.');
-  expect((await getStats(worker)).maleCoupleSkipped).toBe(0);
-  await site.waitForTimeout(1500);
-  await expect(site.getByRole('status')).toHaveText('Next did not change the connection. Try again.');
-  expect((await getStats(worker)).totalSkipped).toBe(0);
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).uncheck();
-});
-
-test('changing partner, turning off auto-skip and Stop cancel delayed automatic actions', async ({ extension: { site, popup, worker } }) => {
-  await enableTracking(popup); await connect(site);
-  await popup.getByRole('slider', { name: 'Skip delay' }).fill('2000');
-  await partnerData(site, { PairId: 'fixture-first', Gender: 1 }, '3');
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).check();
-  await expect(site.getByRole('status')).toHaveText('Male/couple code (1) - experimental mapping');
-  await partnerData(site, { PairId: 'fixture-replacement', Gender: 2 }, '3');
-  await expect.poll(async () => (await getStats(worker)).girlsConnected).toBe(1);
-  expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
-  await partnerData(site, { PairId: 'fixture-disabled', Gender: 1 }, '3');
-  await expect(site.getByRole('status')).toHaveText('Male/couple code (1) - experimental mapping');
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).uncheck();
-  await site.waitForTimeout(2300);
-  expect(await site.locator('body').getAttribute('data-clicks')).toBeNull();
-  await popup.getByRole('switch', { name: 'Experimental auto-skip' }).check();
-  await expect(site.getByRole('status')).toHaveText('Male/couple code (1) - experimental mapping');
-  await site.getByRole('button', { name: 'Stop', exact: true }).click();
-  await site.waitForTimeout(2300);
-  expect(await site.locator('body').getAttribute('data-clicks')).toBeNull(); expect((await getStats(worker)).maleCoupleSkipped).toBe(0);
+  expect(await getStats(worker)).toEqual(before);
+  await expect(site.getByRole('status')).toHaveText('Connected');
 });

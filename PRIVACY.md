@@ -1,6 +1,6 @@
 # Wingman Privacy
 
-Version 1.3.0, October 12, 2026.
+Version 1.3.1, October 12, 2026.
 
 ## Page Access
 
@@ -12,26 +12,26 @@ Wingman does not upload media, chat messages, identities, or browsing history. I
 
 ## Optional Partner Data Check
 
-The OmeTV-only diagnostic check is dormant until started, independently of the experimental mode described below. The check locates the React/Redux provider under `#app` with a bounded traversal and subscribes read-only to `rouletteState.interlocutor`. It checks only own properties named `Gender`, `gender`, `Sex`, and `sex` in that partner object and its `DialogData` object. It does not inspect `ownGender` or scan chat text, user profiles, other globals, network traffic, or media. No site functions or network APIs are replaced.
+The OmeTV-only diagnostic check is dormant until started. The check locates the React/Redux provider under `#app` with a bounded traversal and subscribes read-only to `rouletteState.interlocutor`. It checks only own properties named `Gender`, `gender`, `Sex`, and `sex` in that partner object and its `DialogData` object. It does not inspect `ownGender` or scan chat text, user profiles, other globals, network traffic, or media. No site functions or network APIs are replaced.
 
 Reports contain sample totals, fixed allowlisted field paths, and only recognized short gender-label strings, integers 0 through 3, or booleans. Other values are withheld. The last candidate-bearing sample replaces the previous candidate list; there is no per-person report history. The page bridge sends only this reduced report to the isolated extension, which validates and rebuilds it before display or export. Diagnostic reports are not authenticated and never trigger skip actions, counter writes, or privileged operations.
 
+Version 1.3.1 adds aggregate counts of exact numeric `1`, exact numeric `2`, and other/missing values of the root `Gender` field at the first sample of each distinct partner object. These counts sum to the checked sample count and retain no per-person sequence, identity or timeline. They are raw-code diagnostics, not gender totals. String alternatives and nested values do not contribute to the numeric buckets.
+
 Checking stops after 20 distinct partner-object samples, five minutes, a user stop, or leaving the page. Root traversal and malformed data failures produce an unavailable result, not a gender conclusion. Reports live only in the current tab's memory and reset on reload. Clicking Download saves the reduced report locally; nothing is automatically uploaded or written to extension storage. A downloaded report remains on disk until the user deletes it.
 
-## Experimental Metadata Mode
+## Withdrawn Metadata Mode
 
-Experimental auto-skip is off by default. When both it and Session tracking are on, the isolated extension requests fresh snapshots of the exact root `rouletteState.interlocutor.Gender` field in the OmeTV desktop store. Only numeric `1` and `2` are interpreted, under an explicitly unverified mapping assumption. No diagnostic report, text alternative, voice, face, or other media classifier is used.
+The 1.3.0 numeric auto-skip assumption was withdrawn after reports of incorrect live skips. The current runtime does not load the prototype controller, its snapshot client or its action-related page bridge. A previously saved true enable flag is normalized to false and cannot re-enable the mode. No numeric partner code triggers an action or gender-counter update.
 
-The reader also checks the established roulette state and current remote stream fingerprint, and temporarily compares the connection's `PairId` to produce a tab-local increasing sequence. Raw pair IDs stay in page memory; they are not sent across the bridge, persisted, exported, or uploaded. Stream fingerprints are exchanged only locally between the isolated content script and page bridge to bind a response to active media. Returned snapshots contain only state, a local sequence, and code `1`, `2`, or unknown. Only the latest pair decision is retained, not per-person history.
-
-Valid snapshots may cause a visible Next control click or an aggregate prototype-counter update while the mode is enabled. The bridge and page state are not authenticated: request IDs correlate replies but do not establish a trust boundary against the host page. The source/provenance and server meaning of the received Gender field remain unverified. The mode is a code-based prototype, not verified gender identification. Missing or conflicting data is left unchanged. Pause, Stop, manual Next, disabling the mode, and teardown cancel pending decisions.
+The current diagnostic does not inspect PairId or exchange stream fingerprints with the page bridge. Stream identifiers used by manual connection tracking stay in the isolated content script's memory. Diagnostic request IDs correlate replies but do not authenticate the host page. Source-only withdrawn modules are not part of the browser runtime.
 
 ## Local Storage
 
 Extension-local storage contains:
 
-- Tracking, experimental-mode enablement, skip-delay, HUD display, and connection-audio preferences.
-- Aggregate experimental code-2 connection and transition-confirmed automatic code-1 skip counts.
+- Tracking, HUD display and connection-audio preferences, plus preserved inactive prototype/legacy preferences.
+- Preserved 1.3.0 code-based prototype totals, no longer displayed as gender counts or incremented by the active runtime.
 - Preserved aggregate observed session and manual-skip counts, no longer displayed.
 - A timestamp for statistics initialization or reset.
 - Preserved legacy preferences and aggregate counters, no longer used for filtering or displayed.

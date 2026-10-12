@@ -29,7 +29,8 @@ export function normalizeSettings(value: unknown): WingmanSettings {
   const min = Math.round(number(input.skipDelayMinMs, defaults.skipDelayMinMs, 150, 5000));
   return {
     enabled: typeof input.enabled === 'boolean' ? input.enabled : defaults.enabled,
-    experimentalAutoSkip: input.experimentalAutoSkip === true,
+    // Withdraw the numeric mapping even for profiles that enabled the 1.3.0 prototype.
+    experimentalAutoSkip: false,
     targetGender: ['girls_only', 'boys_only', 'all'].includes(String(input.targetGender))
       ? input.targetGender as WingmanSettings['targetGender'] : defaults.targetGender,
     skipDelayMinMs: min,

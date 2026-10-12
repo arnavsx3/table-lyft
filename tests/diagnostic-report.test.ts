@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { diagnosticJson, diagnosticMessage, idleDiagnostic, inspectPartnerFields, sanitizeDiagnostic } from '../modules/ometv/diagnostic-report';
 
 describe('partner metadata allowlist', () => {
+  it('validates raw-code totals and strips any extra per-person data', () => {
+    const report = { ...idleDiagnostic(), checked: 4, withCandidate: 2,
+      rootCodeTotals: { code1: 1, code2: 1, otherOrMissing: 2, UserId: 'private' } };
+    expect(sanitizeDiagnostic(report)?.rootCodeTotals).toEqual({ code1: 1, code2: 1, otherOrMissing: 2 });
+    expect(diagnosticJson(report, '1.3.1')).not.toContain('private');
+    for (const counts of [{ code1: 5, code2: 0, otherOrMissing: 0 }, { code1: -1, code2: 1, otherOrMissing: 4 },
+      { code1: 1.5, code2: 0.5, otherOrMissing: 2 }, { code1: 3, code2: 1, otherOrMissing: 0 },
+      { code1: '1', code2: 1, otherOrMissing: 2 }, null]) {
+      expect(sanitizeDiagnostic({ ...report, rootCodeTotals: counts })).toBeNull();
+    }
+  });
   it('reads only partner and DialogData gender fields, preserving numeric ambiguity', () => {
     expect(inspectPartnerFields({ Gender: 1, DialogData: JSON.stringify({ sex: ' Female ', text: 'private chat' }),
       UserId: 'private-id', Country: 'private-country', ownGender: { gender: 'male' }, user: { gender: 'male' } })).toEqual([

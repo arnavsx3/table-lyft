@@ -2,27 +2,25 @@
 
 [![Build and tests](https://github.com/arnavsx3/wingman/actions/workflows/build.yml/badge.svg)](https://github.com/arnavsx3/wingman/actions/workflows/build.yml)
 
-Session controls for OmeTV and MiniChat, with an isolated in-page HUD and an opt-in experimental OmeTV metadata-only auto-skip prototype.
+Manual session controls for OmeTV and MiniChat, with an isolated in-page HUD and opt-in, read-only partner metadata diagnostics.
 
-## Version 1.3.0
+## Version 1.3.1
 
-The prototype assumes the received `interlocutor.Gender` uses the same codes as OmeTV's outgoing local selector: **2 = female, 1 = male/couple**. The outgoing mapping was inspected in the official client, and a user-submitted live report contained the received field. **The server's received-field meaning/provenance has not been independently verified. This is not reliable gender identification or a verified self-reported-gender filter.**
+**The 1.3.0 numeric auto-skip prototype has been withdrawn after reported incorrect live skips.** The outgoing selector mapping does not establish the meaning of received partner data. There is no validated code-to-gender mapping. Swapping codes or relabeling past counts would not fix that.
 
-Automatic mode is **off by default**, including after upgrading. Enable **Experimental auto-skip** in the settings panel and keep Session tracking on to test it. It supports the current OmeTV desktop layout only. It does not start chats, request camera/microphone access, inspect pixels or voice, or fall back to media classification.
+Automatic skipping is unavailable in this release, even if a profile saved `experimentalAutoSkip: true`. The active content scripts no longer load the numeric controller, its snapshot client or its page bridge. The settings switch is disabled and normalization rejects attempts to re-enable it. There is no face/voice classification or automatic fallback.
 
-- Girls connected counts established code-2 connections observed in experimental mode, once per tab-local pair sequence after at least 500 ms of stable metadata. It does not verify actual gender or count unique people.
-- Male/couple skipped counts automatic code-1 Next requests followed by an observed connection transition within three seconds. Couples cannot be separated from males with these codes.
-- Missing, string-valued, unexpected, conflicting, unbound, or unavailable metadata leaves the connection unchanged and adds no prototype count. Only the exact root `interlocutor.Gender` field is used, not diagnostic history or alternative fields.
-- Manual Next remains available, but does not add to either prototype counter. Failed clicks, Stop, and unsolicited disconnects do not add a prototype skip.
-- Before an automatic action, a fresh on-demand snapshot must still match the active media and established partner sequence. There is at least 500 ms of stable data and one second between automatic requests; failed requests are not repeatedly clicked.
+- Girls connected and Male/couple skipped show `--`, meaning unavailable, not zero. Past prototype totals are preserved in storage but are not presented as gender counts.
+- Manual Next remains available. It updates the preserved generic skip total only after an observed connection transition within three seconds. Failed clicks, Stop and unsolicited disconnects do not count.
+- Partner data check now shows aggregate raw root `Gender` code totals: exact numeric `1`, exact numeric `2`, and other/missing. These do not identify gender, count unique people, or trigger actions.
 - Live remote playback is recognized without the expected playback CSS class. Searching/stopped states and missing or ended media are excluded.
-- The 420-pixel HUD has the two experimental counters, chat time, tracking controls, Next, and a visible unverified-mapping notice. It fits smaller screens; the settings panel is 520 pixels wide.
+- The 420-pixel HUD has unavailable gender-total placeholders, chat time, tracking controls, Next and a visible mapping-withdrawal notice. It fits smaller screens; the settings panel is 520 pixels wide.
 - Counters synchronize across tabs, persist through reloads, and reset only after confirmation.
 - Browser bundles contain no video models or classification code.
 
-Existing aggregate counters are preserved but are no longer displayed. The two new prototype counters start at zero; historical classifications and manual skips are never relabeled as prototype results. Legacy filtering modules and assets remain in source for reference but are not loaded or shipped in the browser runtime.
+Existing aggregate counters are preserved, not reset or relabeled. For example, a 1.3.0 "Male/couple skipped" total of 42 meant 42 transition-confirmed code-1 skip requests, not 42 verified men. A zero "Girls connected" total meant no established code-2 connection met the prototype's counting condition, not that no girls connected. Legacy filtering and withdrawn prototype modules remain in source for reference only and are not loaded or shipped in the browser runtime.
 
-The separate opt-in **Partner data check** remains diagnostic only. Its retained fields never trigger automatic actions. See [Partner Data Check](docs/PARTNER_DATA_CHECK.md) for verification evidence and limits.
+The opt-in **Partner data check** remains diagnostic only. Its retained fields and aggregate code totals never trigger actions or counter writes. See [Partner Data Check](docs/PARTNER_DATA_CHECK.md) for evidence and limits.
 
 ## Install
 
@@ -42,7 +40,7 @@ For Brave, Chrome, Edge, or compatible Chromium browsers:
 3. Select `dist/chrome-mv3`.
 4. Refresh OmeTV or MiniChat.
 
-After an update, reload Wingman's extension card and refresh the site. Check that the settings panel shows version 1.3.0, then enable Experimental auto-skip explicitly.
+After an update, reload Wingman's extension card and refresh the site. Check that the settings panel shows version 1.3.1 and Experimental auto-skip is disabled.
 
 For Firefox 128 or newer, run `npm run build:firefox`. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `dist/firefox-mv3/manifest.json`. Allow access to supported sites when asked. Temporary installs end when Firefox restarts; regular distribution requires Mozilla signing. Both targets use Manifest V3. The diagnostic bridge requires page-world content script support (Chromium 111+, Firefox 128+).
 
@@ -54,7 +52,7 @@ Use the HUD or settings panel's **Next** for a manual skip. It is disabled witho
 
 Counters represent observable page activity, not guaranteed server acknowledgment. Ignored Next clicks time out without adding a skip. A partner leaving at the same moment as a Next request cannot be distinguished from a successful skip. Unavailable controls produce an error rather than clicking arbitrary buttons.
 
-Pause prevents new counts and automatic actions. Turning off Experimental auto-skip cancels pending prototype work. Manual Next and Stop cancel the current pair's delayed automatic decision. Resuming an already-counted pair does not count it again; an established code-2 pair first observed while paused can count once on resume. Reset clears aggregate totals, not the active connection's clock or pair sequence. The active pair is not immediately recounted after reset.
+Pause prevents new generic activity counts. Reset clears stored aggregate totals, including the preserved 1.3.0 prototype history, not the active connection's clock. No gender counters are generated. The independent diagnostic can run while Session tracking is paused.
 
 Connection sound depends on browser audio policy. Hiding the HUD does not stop tracking; re-enable it in the settings panel.
 
@@ -73,7 +71,7 @@ npm run zip
 npm run zip:firefox
 ```
 
-Builds are in `dist/`. Installed-extension tests use intercepted fixture pages and synthetic streams, not cameras or strangers. They cover manual controls, metadata-only automatic actions, counters, unknown data, failure, Stop, pause, persistence, cross-context storage, resets, native settings-window dimensions, responsive HUD screenshots, and opt-in diagnostics. Synthetic tests do not verify the live server mapping. Test artifacts are in `test-results/`.
+Builds are in `dist/`. Installed-extension tests use intercepted fixture pages and synthetic streams, not cameras or strangers. They cover manual controls, old-enable-flag migration, rejection of re-enablement, absence of numeric auto-actions, preserved history, failure, Stop, pause, resets, native settings-window dimensions, responsive HUD screenshots and raw-code diagnostics. Source-only prototype unit tests do not imply it is shipped or that its mapping is valid. Test artifacts are in `test-results/`.
 
 ## Architecture
 
@@ -81,14 +79,11 @@ Builds are in `dist/`. Installed-extension tests use intercepted fixture pages a
 | --- | --- |
 | `entrypoints/background.ts` | Serialized storage mutations and tracking badge |
 | `entrypoints/content.ts` | Lifecycle, subscriptions, manual controls, and shortcuts |
-| `entrypoints/partner-check.content.ts` | OmeTV-only on-demand metadata and optional diagnostic bridge |
-| `modules/ometv/prototype-data.ts` | Exact current-partner field, established-state/media checks and tab-local sequence |
-| `modules/ometv/prototype-client.ts` | Bounded request/response snapshots, cancellation and timeout |
-| `modules/ometv/prototype.ts` | Opt-in unverified-code decisions, stable delay, deduplication and cancellation |
+| `entrypoints/partner-check.content.ts` | Dormant OmeTV-only read-only diagnostic bridge |
 | `modules/ometv/metadata-probe.ts` | Bounded, read-only partner-state subscription |
 | `modules/ometv/diagnostic-report.ts` | Field allowlist, redaction, message validation, and export |
 | `modules/ometv/session.ts` | Remote stream/track and playback identity |
-| `modules/ometv/assistant.ts` | Manual controls and transition-confirmed manual/automatic accounting |
+| `modules/ometv/assistant.ts` | Manual controls and transition-confirmed generic accounting |
 | `modules/ometv/skipper.ts` | Validated site controls and optional audio |
 | `modules/ometv/hud.tsx` | Shadow-root controls and chat timer |
 | `modules/preferences.ts` | Validation and migration |
@@ -100,8 +95,8 @@ Builds are in `dist/`. Installed-extension tests use intercepted fixture pages a
 - Next unavailable means the control is hidden, disabled, or changed. Wingman does not click Start as Next.
 - Background pages may receive delayed browser events. Counters use observable transitions, not network interception.
 - Real matchmaking, MiniChat layout compatibility, and Firefox runtime behavior still require manual verification.
-- Diagnostics and the prototype depend on the current React/Redux store. A missing `PairId`, unsupported layout, non-established state, or unavailable bridge prevents prototype actions. A stream replacement without an established new pair is left unchanged.
-- Page data and the bridge are untrusted and cannot authenticate a partner's claims. The numeric mapping/provenance is unverified; the prototype may keep or skip the wrong connections. Its counters are experimental code-based activity, not verified gender totals.
+- Diagnostics depend on the current React/Redux store. Unavailable inspection is not proof that gender fields never exist. Raw code totals count the first sample of each distinct partner object, not every state transition or every person.
+- Page data and the bridge are untrusted and cannot authenticate a partner's claims. The received field's provenance and meaning remain unverified. A controlled, independently confirmed explicit selection would be needed to investigate any future mapping; appearance is not evidence of that selection.
 
 ## Privacy and License
 

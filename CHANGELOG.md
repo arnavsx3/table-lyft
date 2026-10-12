@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.1 - 2026-10-12
+
+### Fixed
+
+- Withdraw the numeric code-to-gender auto-skip prototype after reported incorrect live skips. The controller, snapshot client and prototype page bridge are no longer loaded or shipped.
+- Normalize previously enabled prototype settings to false and disable re-enablement. Manual Next and read-only diagnostics remain available.
+- Reject old prototype counter-write commands in the background handler.
+- Show gender totals as unavailable instead of presenting old code-based totals as girls or males. Preserve stored history without resetting or relabeling it.
+- Add regression checks for saved enablement, rejected re-enablement, preserved counters, and absence of automatic actions from numeric metadata.
+
+### Added
+
+- Diagnostic-only aggregate totals of root Gender numeric codes 1, 2 and other/missing, with validated totals, no per-person timeline and no gender interpretation.
+- Bundle assertions that the withdrawn numeric action bridge and mapping messages are absent.
+
 ## 1.3.0 - 2026-10-12
 
 ### Added

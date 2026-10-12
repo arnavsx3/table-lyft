@@ -44,7 +44,7 @@ export class PartnerMetadataProbe {
 
   start() {
     this.destroy();
-    this.report = { ...idleDiagnostic(), state: 'waiting' };
+    this.report = { ...idleDiagnostic(), state: 'waiting', rootCodeTotals: { code1: 0, code2: 0, otherOrMissing: 0 } };
     this.seen = new WeakSet();
     this.startedAt = Date.now();
     this.publish(this.report);
@@ -95,8 +95,13 @@ export class PartnerMetadataProbe {
       if (!partner || typeof partner !== 'object' || Array.isArray(partner) || this.seen.has(partner)) return;
       this.seen.add(partner);
       const fields = inspectPartnerFields(partner);
+      const code = ownValue(partner, 'Gender');
+      const rootCodeTotals = { ...this.report.rootCodeTotals! };
+      if (code === 1) rootCodeTotals.code1++;
+      else if (code === 2) rootCodeTotals.code2++;
+      else rootCodeTotals.otherOrMissing++;
       this.report = { state: 'watching', checked: this.report.checked + 1,
-        withCandidate: this.report.withCandidate + (fields.length ? 1 : 0), fields: fields.length ? fields : this.report.fields };
+        withCandidate: this.report.withCandidate + (fields.length ? 1 : 0), fields: fields.length ? fields : this.report.fields, rootCodeTotals };
       if (this.report.checked >= DIAGNOSTIC_LIMIT) {
         this.report.state = 'complete';
         this.destroy();

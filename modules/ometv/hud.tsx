@@ -98,10 +98,10 @@ export class WingmanInPageHud {
         onClick={this.onToggle}>{settings.enabled ? <Pause size={17} /> : <Play size={17} />}</button>
       <button title="Hide controls" aria-label="Hide controls" onClick={this.onHide}><X size={17} /></button></div></div>
       <p className={`status ${warning ? 'warning' : ''}`} role="status">{this.status.message}</p>
-      <p className="experimental">Experimental counters: 2 = female; 1 = male/couple. Partner mapping unverified.{!settings.experimentalAutoSkip && ' Auto-skip off.'}</p>
+      <p className="experimental">Auto-skip unavailable: partner code mapping is unreliable. Gender totals unavailable.</p>
       <PartnerDataCheck report={this.status.diagnostic} onStart={this.onCheck} onStop={this.onStopCheck} onDownload={this.onDownload} />
-      <div className="metrics"><div className="metric" aria-label="Girls connected"><strong title={stats.girlsConnected.toLocaleString()}>{formatCount(stats.girlsConnected)}</strong><span>Girls connected</span></div>
-        <div className="metric skips" aria-label="Male/couple skipped"><strong title={stats.maleCoupleSkipped.toLocaleString()}>{formatCount(stats.maleCoupleSkipped)}</strong><span>Male/couple skipped</span></div>
+      <div className="metrics"><div className="metric" aria-label="Girls connected"><strong>--</strong><span>Girls connected</span></div>
+        <div className="metric skips" aria-label="Male/couple skipped"><strong>--</strong><span>Male/couple skipped</span></div>
         <div className="metric"><ChatClock startedAt={this.status.connectedAt} /><span>Chat time</span></div></div>
       <button className="next" title="Next connection" aria-label="Next connection" disabled={!settings.enabled || !this.status.canSkip} onClick={this.onNext}>
         <SkipForward size={18} />Next</button></aside>);

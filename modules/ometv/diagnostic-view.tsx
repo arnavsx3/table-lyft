@@ -27,6 +27,9 @@ export function PartnerDataCheck({ report = idleDiagnostic(), onStart, onStop, o
       </div></div>
     <p className="partner-check-message" aria-live="polite">{diagnosticMessage(report)}</p>
     {report.state !== 'idle' && <div className="partner-check-count">Connections checked: {report.checked} / {DIAGNOSTIC_LIMIT}. With candidate field: {report.withCandidate}.</div>}
+    {report.state !== 'idle' && report.rootCodeTotals && <div className="partner-check-count" aria-label="Raw partner code totals">
+      Root Gender codes: 1 = {report.rootCodeTotals.code1}; 2 = {report.rootCodeTotals.code2}; other/missing = {report.rootCodeTotals.otherOrMissing}.
+    </div>}
     {report.fields.length > 0 && <div className="partner-check-fields" aria-label="Last observed candidate fields">{report.fields.map(field =>
       <div key={field.path}>{field.path}: {field.format === 'unrecognized' ? 'value withheld' : String(field.value)}</div>)}</div>}
   </div>;

@@ -1,16 +1,16 @@
 # Partner Data Check
 
-Version 1.2.1 introduced this diagnostic. Version 1.3.0 keeps it independent of a separate, off-by-default experimental metadata-only prototype. Diagnostic reports never drive prototype decisions.
+Version 1.2.1 introduced this diagnostic. Version 1.3.1 withdraws the 1.3.0 numeric auto-skip prototype and adds raw-code aggregate counts. Diagnostic reports never trigger actions or gender-counter writes.
 
 ## Run It in Brave
 
-1. Reload Wingman in `brave://extensions`, then refresh OmeTV. Confirm version **1.3.0** in Wingman's settings panel.
+1. Reload Wingman in `brave://extensions`, then refresh OmeTV. Confirm version **1.3.1** in Wingman's settings panel; Experimental auto-skip is disabled.
 2. In **Partner data check**, click the scan icon labeled **Start partner data check**. This works independently of the Session tracking switch.
 3. Use OmeTV normally. Wingman does not click Start, obtain camera/microphone permission, or establish a chat for you.
 4. Allow several normal connections to be checked. An already-active connection may be sampled immediately. The check ends after 20 samples or five minutes; the square icon stops it sooner.
 5. Click the download icon to save `wingman-partner-check.json`. Share that reduced report when debugging, not screenshots of strangers, chat content, or full network captures.
 
-Reports reset on page reload. No diagnostic results are saved to extension storage. This diagnostic has no action or counter-writing path; leave Experimental auto-skip off when inspecting data without automatic behavior.
+Reports reset on page reload. No diagnostic results are saved to extension storage. This diagnostic has no action or counter-writing path. Automatic gender filtering is unavailable in 1.3.1.
 
 ## Read the Result
 
@@ -25,6 +25,8 @@ Reports reset on page reload. No diagnostic results are saved to extension stora
 | Check unavailable. Reload OmeTV and try again. | The page bridge did not respond. Refresh the site after reloading/updating the extension. |
 
 The displayed field list comes from the last sample containing candidate fields, not necessarily the current partner. Samples are deduplicated by object identity in tab memory, not by user ID; reconnects or replaced objects can produce another sample. These are diagnostic sample totals, not new activity counters.
+
+`rootCodeTotals` aggregates the exact root `interlocutor.Gender` value at the first sample of each checked object: numeric `1`, numeric `2`, or other/missing. Strings such as `"2"`, nested `DialogData.Gender`, other numeric values and absent fields go in the last bucket. The three counts sum to `checked`. These totals reveal whether sampled codes vary, but cannot establish their meaning, gender, provenance, unique people, or how the field changes later in a connection. No per-person sequence is retained.
 
 ## Scope and Limits
 
@@ -50,7 +52,13 @@ The official desktop bundle fetched again for this verification had SHA-256 `44c
 
 These are protocol values, not the saved selector indexes. The local storage indexes are `0`, `1`, and `2` respectively. A separate outgoing `ExtraUserData.Gender` can be forced to the male selector value when `ticket.isPayer` or `ticket.isSuspected` is set. Neither outgoing field proves which value the server places in the received partner payload, or whether it transforms that value.
 
-No explicit mapping from received `interlocutor.Gender` to a partner's selected setting was established by this source inspection. Version 1.3.0 offers an opt-in prototype based on the outgoing-code assumption at the user's request; this does not verify the received field's meaning or provenance. In particular, `1` cannot be presented as verified male-only metadata: even the outgoing selector shares that code with couples.
+No explicit mapping from received `interlocutor.Gender` to a partner's selected setting was established by this source inspection. Version 1.3.0 offered an opt-in prototype based on the outgoing-code assumption; 1.3.1 withdraws it. In particular, `1` cannot be presented as verified male-only metadata: even the outgoing selector shares that code with couples.
+
+### Live Failure Report
+
+The user reported broad skipping, including connections they described as girls, while the code-2 connected counter stayed zero. They reported a displayed code-1 skip total of 42. This is evidence that the prototype was not meeting its intended behavior, not a validated mapping of those individuals' settings. No per-connection raw data or independently confirmed selected setting for those connections was supplied. Appearance and the aggregate count cannot establish that mapping.
+
+In 1.3.0, the connected counter required stable code `2` in an established, bound connection. Zero means that condition was not observed, not that zero girls connected. The skipped total counted transition-confirmed automatic code-1 requests, not verified men. Version 1.3.1 preserves those old totals but hides the gender interpretation and removes the numeric action path. The raw-code report is for further inspection only; it cannot by itself justify restoring automatic filtering.
 
 ### Remaining Controlled Check
 
